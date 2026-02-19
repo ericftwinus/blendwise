@@ -46,35 +46,102 @@ const quickActions = [
   },
 ];
 
+interface DashboardData {
+  userName: string;
+  hasAssessment: boolean;
+  hasNutrientTargets: boolean;
+  hasGroceryList: boolean;
+  lastWeight: string | null;
+  logStreak: number;
+  tier: number;
+}
+
 export default function DashboardPage() {
-  const [userName, setUserName] = useState("");
+  const [data, setData] = useState<DashboardData>({
+    userName: "",
+    hasAssessment: false,
+    hasNutrientTargets: false,
+    hasGroceryList: false,
+    lastWeight: null,
+    logStreak: 0,
+    tier: 1,
+  });
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      setUserName(data.user?.user_metadata?.full_name || "there");
-    });
+    async function load() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const userName = user.user_metadata?.full_name || "there";
+
+      // Fetch all in parallel
+      const [assessmentRes, targetsRes, groceryRes, logsRes, profileRes] = await Promise.all([
+        supabase.from("assessments").select("id").eq("user_id", user.id).limit(1),
+        supabase.from("nutrient_targets").select("id").eq("user_id", user.id).limit(1),
+        supabase.from("grocery_lists").select("id").eq("user_id", user.id).limit(1),
+        supabase.from("symptom_logs").select("date, weight").eq("user_id", user.id).order("date", { ascending: false }).limit(30),
+        supabase.from("profiles").select("subscription_tier").eq("id", user.id).single(),
+      ]);
+
+      // Calculate streak
+      let streak = 0;
+      if (logsRes.data && logsRes.data.length > 0) {
+        const today = new Date();
+        for (let i = 0; i < logsRes.data.length; i++) {
+          const expected = new Date(today);
+          expected.setDate(expected.getDate() - i);
+          const expectedStr = expected.toISOString().split("T")[0];
+          if (logsRes.data[i].date === expectedStr) {
+            streak++;
+          } else {
+            break;
+          }
+        }
+      }
+
+      const lastWeight = logsRes.data?.[0]?.weight ? `${logsRes.data[0].weight} lbs` : null;
+
+      setData({
+        userName,
+        hasAssessment: (assessmentRes.data?.length ?? 0) > 0,
+        hasNutrientTargets: (targetsRes.data?.length ?? 0) > 0,
+        hasGroceryList: (groceryRes.data?.length ?? 0) > 0,
+        lastWeight,
+        logStreak: streak,
+        tier: profileRes.data?.subscription_tier ?? 1,
+      });
+    }
+    load();
   }, []);
+
+  const tierName = data.tier === 3 ? "Full Convenience" : data.tier === 2 ? "Personalized Automation" : "Clinical Access";
+
+  const checklist = [
+    { step: "Create your account", done: true },
+    { step: "Complete your RD assessment", done: data.hasAssessment },
+    { step: "Review your Estimated Nutrient Needs", done: data.hasNutrientTargets },
+    { step: "Generate your first grocery list", done: data.hasGroceryList },
+    { step: "Log your first symptom entry", done: data.logStreak > 0 },
+  ];
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
-      {/* Welcome */}
       <div>
         <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-          Welcome back, {userName}
+          Welcome back, {data.userName}
         </h1>
         <p className="text-gray-500 mt-1">
           Here&apos;s an overview of your BlendWise journey.
         </p>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { icon: Calendar, label: "Next RD Appointment", value: "Schedule Now", color: "text-blue-600 bg-blue-50" },
-          { icon: TrendingUp, label: "Current Streak", value: "0 days", color: "text-green-600 bg-green-50" },
-          { icon: Weight, label: "Last Weight Log", value: "Not recorded", color: "text-purple-600 bg-purple-50" },
-          { icon: Heart, label: "Subscription", value: "Free Tier", color: "text-pink-600 bg-pink-50" },
+          { icon: Calendar, label: "Assessment Status", value: data.hasAssessment ? "Completed" : "Not Started", color: "text-blue-600 bg-blue-50" },
+          { icon: TrendingUp, label: "Logging Streak", value: `${data.logStreak} day${data.logStreak !== 1 ? "s" : ""}`, color: "text-green-600 bg-green-50" },
+          { icon: Weight, label: "Last Weight Log", value: data.lastWeight || "Not recorded", color: "text-purple-600 bg-purple-50" },
+          { icon: Heart, label: "Subscription", value: tierName, color: "text-pink-600 bg-pink-50" },
         ].map((stat) => (
           <div key={stat.label} className="bg-white rounded-xl border border-gray-200 p-5">
             <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 ${stat.color}`}>
@@ -86,7 +153,6 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Quick Actions */}
       <div>
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -111,24 +177,14 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Getting Started Checklist */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Getting Started</h2>
         <div className="space-y-3">
-          {[
-            { step: "Create your account", done: true },
-            { step: "Complete your RD assessment", done: false },
-            { step: "Review your Estimated Nutrient Needs", done: false },
-            { step: "Choose your feeding approach", done: false },
-            { step: "Generate your first grocery list", done: false },
-            { step: "Log your first symptom entry", done: false },
-          ].map((item) => (
+          {checklist.map((item) => (
             <div key={item.step} className="flex items-center gap-3">
               <div
                 className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                  item.done
-                    ? "bg-brand-600 border-brand-600"
-                    : "border-gray-300"
+                  item.done ? "bg-brand-600 border-brand-600" : "border-gray-300"
                 }`}
               >
                 {item.done && (

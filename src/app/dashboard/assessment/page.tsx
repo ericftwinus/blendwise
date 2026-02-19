@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   ClipboardCheck,
@@ -48,6 +48,7 @@ export default function AssessmentPage() {
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({
     // Medical History
     diagnosis: "",
@@ -77,6 +78,50 @@ export default function AssessmentPage() {
     paymentMethod: "",
     insuranceProvider: "",
   });
+
+  // Load existing assessment on mount
+  useEffect(() => {
+    async function loadAssessment() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setLoading(false); return; }
+
+      const { data } = await supabase
+        .from("assessments")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (data) {
+        setForm({
+          diagnosis: data.diagnosis || "",
+          tubeType: data.tube_type || "",
+          tubePlacementDate: data.tube_placement_date || "",
+          currentFormula: data.current_formula || "",
+          feedingSchedule: data.feeding_schedule || "",
+          dailyVolume: data.daily_volume || "",
+          giSymptoms: data.gi_symptoms || [],
+          giNotes: data.gi_notes || "",
+          allergies: data.allergies || "",
+          intolerances: data.intolerances || "",
+          dietaryPreferences: data.dietary_preferences || [],
+          dietaryNotes: data.dietary_notes || "",
+          hasBlender: data.has_blender || false,
+          blenderType: data.blender_type || "",
+          hasFoodStorage: data.has_food_storage || false,
+          hasKitchenScale: data.has_kitchen_scale || false,
+          feedingGoal: data.feeding_goal || "",
+          additionalNotes: data.additional_notes || "",
+          paymentMethod: data.payment_method || "",
+          insuranceProvider: data.insurance_provider || "",
+        });
+      }
+      setLoading(false);
+    }
+    loadAssessment();
+  }, []);
 
   function updateField(field: string, value: string | boolean | string[]) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -108,9 +153,26 @@ export default function AssessmentPage() {
     if (user) {
       await supabase.from("assessments").upsert({
         user_id: user.id,
-        ...form,
+        diagnosis: form.diagnosis,
+        tube_type: form.tubeType,
+        tube_placement_date: form.tubePlacementDate || null,
+        current_formula: form.currentFormula,
+        feeding_schedule: form.feedingSchedule,
+        daily_volume: form.dailyVolume,
         gi_symptoms: form.giSymptoms,
+        gi_notes: form.giNotes,
+        allergies: form.allergies,
+        intolerances: form.intolerances,
         dietary_preferences: form.dietaryPreferences,
+        dietary_notes: form.dietaryNotes,
+        has_blender: form.hasBlender,
+        blender_type: form.blenderType,
+        has_food_storage: form.hasFoodStorage,
+        has_kitchen_scale: form.hasKitchenScale,
+        feeding_goal: form.feedingGoal,
+        additional_notes: form.additionalNotes,
+        payment_method: form.paymentMethod,
+        insurance_provider: form.insuranceProvider,
         updated_at: new Date().toISOString(),
       });
     }
@@ -338,6 +400,10 @@ export default function AssessmentPage() {
       ),
     },
   ];
+
+  if (loading) {
+    return <div className="text-center py-16 text-gray-400">Loading assessment...</div>;
+  }
 
   if (saved) {
     return (
