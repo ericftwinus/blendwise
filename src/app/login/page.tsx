@@ -28,7 +28,10 @@ export default function LoginPage() {
       setError(error.message);
       setLoading(false);
     } else {
-      router.push("/dashboard");
+      // Redirect based on role
+      const { data: { user } } = await supabase.auth.getUser();
+      const role = user?.user_metadata?.role || "patient";
+      router.push(role === "rd" ? "/rd" : "/dashboard");
       router.refresh();
     }
   }

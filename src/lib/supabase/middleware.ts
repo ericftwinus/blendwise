@@ -29,14 +29,35 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Redirect unauthenticated users away from dashboard
-  if (
-    !user &&
-    request.nextUrl.pathname.startsWith("/dashboard")
-  ) {
+  const pathname = request.nextUrl.pathname;
+
+  // Redirect unauthenticated users away from protected routes
+  if (!user && (pathname.startsWith("/dashboard") || pathname.startsWith("/rd"))) {
+    // Allow /rd/signup without auth
+    if (pathname === "/rd/signup") return supabaseResponse;
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
+  }
+
+  if (user) {
+    const role = user.user_metadata?.role || "patient";
+
+    // Prevent patients from accessing /rd routes
+    if (role !== "rd" && role !== "admin" && pathname.startsWith("/rd")) {
+      // Allow anyone to view /rd/signup
+      if (pathname === "/rd/signup") return supabaseResponse;
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard";
+      return NextResponse.redirect(url);
+    }
+
+    // Redirect RDs away from patient dashboard to /rd
+    if (role === "rd" && pathname.startsWith("/dashboard")) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/rd";
+      return NextResponse.redirect(url);
+    }
   }
 
   return supabaseResponse;
