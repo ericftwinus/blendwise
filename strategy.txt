@@ -1,0 +1,302 @@
+Please create a next.js app that implements this plan.  I have api keys for a database and for image creation if needed for content in .env.
+
+
+
+BlendWise Nutrition – Comprehensive
+Business Plan
+1. Executive Summary
+BlendWise is a digital health platform designed to empower individuals who rely on tube
+feedings by helping them safely prepare homemade blenderized tube feedings (BTF) at home.
+Through expert guidance from highly qualified Registered Dietitians, automated planning tools,
+and optional grocery delivery, BlendWise restores autonomy, dignity, and control to tube‑fed
+individuals who want more natural, personalized nutrition.
+Founded by a Registered Dietitian with 15 years of clinical experience and specialty
+certifications in nutrition support and oncology nutrition, BlendWise Nutrition fills a major gap in
+the healthcare system: most clinicians lack training in homemade BTF, leaving patients without
+safe, structured guidance. BlendWise Nutrition provides that expertise through a clinically
+supervised, user‑friendly, and emotionally supportive platform.
+BlendWise integrates insurance‑billable Medical Nutrition Therapy (MNT), subscription‑based
+automation tools, and future partnership opportunities with equipment and food‑storage
+companies. It is the first platform to combine RD oversight, personalized BTF planning,
+automated grocery lists, GI‑symptom‑responsive adjustments, and family‑integrated meal
+planning.
+
+2. Mission Statement
+BlendWise empowers individuals who rely on tube feedings to safely prepare their own
+homemade blenderized tube feedings — restoring autonomy, dignity, and control over their
+nutrition. Through expert guidance from highly qualified dietitians and a supportive digital
+platform, BlendWise helps users confidently choose the feeding approach that best fits their
+needs, whether fully homemade, partially blended, or supplemental.
+
+3. Company Description
+BlendWise is a digital health company focused on transforming the tube‑feeding experience.
+The platform provides personalized RD assessments, customized nutrient targets, automated
+grocery lists, recipe generation, symptom‑responsive adjustments, and optional grocery
+delivery.
+
+BlendWise is built on evidence‑based practice, clinical expertise, and a deep understanding of
+the emotional and practical challenges faced by tube‑fed individuals and their families.
+Core Values
+● Autonomy
+● Safety
+● Evidence‑based care
+● Accessibility
+● Dignity
+● Innovation
+● Community
+
+4. Problem Statement
+Many individuals who rely on tube feeding experience:
+● GI intolerance to commercial formulas
+● Limited formula variety
+● Desire for whole‑food nutrition
+● Lack of structured guidance for homemade BTF
+● Fear of tube clogging or unsafe blends
+● Overwhelm with meal planning and grocery shopping
+● Emotional isolation during mealtimes
+A major barrier is that many Registered Dietitians, physicians, and other healthcare
+providers lack training or confidence in BTF. This leads to:
+● Unsafe or nutritionally inadequate blends
+● Poor symptom management
+● No structured transition plans
+● Missed opportunities for improved tolerance and quality of life
+BlendWise fills this gap by providing access to experts in BTF, including a founder with 15
+years of experience as a Registered Dietitian, a certification in nutrition support, and specialized
+knowledge in enteral nutrition.
+
+5. Solution: BlendWise Workflow
+Step 1: Initial RD Assessment (Required)
+
+A comprehensive evaluation determines:
+● Appropriateness for BTF
+● Medical history
+● GI symptoms
+● Allergies/intolerances
+● Dietary preferences
+● Feeding regimen
+● Equipment access
+● Safety considerations
+Payment options:
+● Insurance‑billable MNT
+● Out‑of‑pocket payment
+BlendWise may also integrate a nurse practitioner for medical oversight and referrals.
+Step 2: RD‑Generated Estimated Nutrient Needs (ENN)
+Users receive personalized nutrient targets:
+● Calories
+● Protein
+● Carbohydrate
+● Fat
+● Fluids
+● Fiber
+● Micronutrients
+● Feeding schedule
+● Safety notes
+This becomes the foundation for recipe and grocery list generation.
+Step 3: User Decision Point
+After receiving their RD assessment, users choose whether they want to:
+● Fully transition to homemade BTF
+● Use a hybrid approach (commercial formula + BTF)
+● Supplement their current regimen with BTF occasionally
+BlendWise supports all three pathways.
+
+Step 4: Automated Weekly Grocery List
+Generated based on:
+● ENN
+● Allergies
+● Dietary preferences
+● GI symptoms (e.g., diarrhea → more soluble fiber foods)
+● Feeding volume limits
+Users can modify ingredients and save favorites.
+Step 5: Optional Grocery Delivery
+Partnerships with:
+● Instacart
+● Amazon Fresh
+● Walmart
+One‑click ordering makes BTF accessible and convenient.
+Step 6: RD Follow‑Ups
+● 1‑week follow‑up to assess tolerance
+● Monthly follow‑ups thereafter
+● Additional messaging depending on subscription tier
+Insurance or out‑of‑pocket payment applies.
+Step 7: Weight &amp; Symptom Tracking
+The app tracks:
+● Weight trends
+● GI symptoms
+● Intake consistency
+● Recipe tolerance
+This data helps RDs adjust plans safely and quickly.
+
+6. Market Analysis
+Primary Target Markets
+BlendWise focuses on outpatient and home‑based care, where BTF interest is strongest.
+Ideal Referral Partners
+● Independent Speech‑Language Pathologists (SLPs)
+● Outpatient oncology clinics
+● GI and dysphagia specialists
+● Home health agencies
+● Pediatric outpatient centers
+● Primary care and family medicine practices
+Why These Markets Work
+● Not tied to formula contracts
+● High prevalence of tube feeding
+● Strong interest in whole‑food nutrition
+● Lack of BTF expertise in traditional settings
+
+7. Competitive Landscape
+Why BlendWise Is Unique
+Feature / Service BlendWise Commercial
+BTF
+Companies
+
+Recipe Blogs Traditional
+RD Clinics
+
+Supports homemade BTF Yes —
+core focus
+
+No Partially Rare
+
+Personalized RD
+assessment
+
+Yes No No Sometimes
+
+15 years RD experience +
+nutrition support certification
+
+Yes No No Varies
+
+Customized ENN Yes No No Sometimes
+Automated grocery list Yes No No No
+
+Allergy/intolerance
+adjustments
+
+Yes Limited User‑depend
+
+ent
+
+Yes
+
+GI‑symptom‑responsive
+adjustments
+
+Yes No No Manual
+
+Hybrid feeding options Yes No No Rare
+Grocery delivery integration Yes No No No
+Educational videos Yes No No Rare
+Weight &amp; symptom tracking Yes No No No
+Insurance‑billable MNT Yes No No Sometimes
+Caregiver mode Yes No No No
+Advanced analytics Yes No No No
+Designed specifically for
+BTF
+
+Yes Yes
+(commercial
+only)
+
+No No
+
+8. Business Model
+A. Insurance‑Billable Services
+● Initial RD assessment
+● 1‑week follow‑up
+● Monthly follow‑ups
+● Additional MNT visits
+Users may also pay out‑of‑pocket.
+B. Subscription Tiers
+⭐ Tier 1: Clinical Access
+Includes:
+● RD assessment
+● ENN
+
+● Monthly follow‑ups
+● Educational videos
+● Weight &amp; symptom tracking
+● Referral management
+User cost:
+Copay/coinsurance or out‑of‑pocket
+● BlendWise revenue:
+● Insurance reimbursement or direct payment
+⭐⭐ Tier 2: Personalized Automation
+Includes everything in Tier 1 plus:
+● Automated grocery list
+● Customized recipes
+● Allergy/intolerance filters
+● GI‑symptom‑responsive adjustments
+● Limited RD messaging
+User cost: $39/month
+⭐⭐⭐ Tier 3: Full Convenience
+Includes everything in Tier 2 plus:
+● Grocery delivery integration
+● Unlimited RD messaging
+● Priority scheduling
+● Caregiver mode
+● Advanced analytics
+User cost: $79/month
+
+9. Operations Plan
+Technology
+● HIPAA‑compliant app
+● Weight &amp; symptom tracking
+● Recipe generation engine
+
+● Grocery API integration
+Clinical Operations
+● Standardized assessment templates
+● Documentation for insurance billing
+● RD training in BTF best practices
+● Optional NP oversight
+
+10. Future Ideas &amp; Expansion
+Opportunities
+1. Equipment Partnerships
+Potential partners:
+● Vitamix
+● Ninja
+● NutriBullet
+● OXO, Rubbermaid, Sistema
+● Souper Cubes
+Offerings:
+● Discounted bundles
+● Tier 3 equipment packages
+● Affiliate revenue
+● Co‑branded educational content
+2. Family Meal Integration Program
+● One unified grocery list for the household
+● Two recipe sets: family meals + tube‑feeding blends
+● Reduces isolation
+● Saves money
+● Strengthens family connection
+3. Community Support Features
+● Peer groups
+
+● Caregiver communities
+● Recipe sharing
+● Live Q&amp;A sessions
+4. Medical Device Integration
+● Smart scales
+● Feeding pump syncing
+● Wearable hydration/symptom tracking
+5. Pediatric‑Specific Features
+● Age‑specific recipes
+● Growth tracking
+● Pediatric RD specialists
+6. NP‑Supported Medical Oversight
+● Medical orders
+● Regimen adjustments
+● Symptom triage
+7. Research &amp; Clinical Trials
+● Outcome studies
+● GI tolerance research
+● Academic partnerships
+
+11. Conclusion
+BlendWise is uniquely positioned to transform the tube‑feeding experience by combining
+clinical expertise, personalized automation, and emotional support. With insurance‑billable
+services, subscription‑based tools, and future partnership opportunities, BlendWise offers a
+scalable, patient‑centered solution that fills a major gap in the healthcare landscape.
+You’re not just building an app — you’re building a movement toward autonomy, dignity, and
+connection for tube‑fed individuals everywhere.
