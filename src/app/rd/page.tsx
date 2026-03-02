@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import {
   Users,
   ClipboardCheck,
+  FileText,
   Activity,
   ArrowRight,
 } from "lucide-react";
@@ -148,7 +149,7 @@ export default function RDDashboardPage() {
       </div>
 
       {/* Quick actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Link
           href="/rd/assessments"
           className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-md transition"
@@ -160,6 +161,18 @@ export default function RDDashboardPage() {
           <p className="text-sm text-gray-500">
             View submitted patient assessments and set personalized nutrient
             targets.
+          </p>
+        </Link>
+        <Link
+          href="/rd/referrals"
+          className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-md transition"
+        >
+          <FileText className="w-8 h-8 text-accent-600 mb-3" />
+          <h3 className="font-semibold text-gray-900 mb-1">
+            Physician Referrals
+          </h3>
+          <p className="text-sm text-gray-500">
+            Review, generate, and track physician authorization forms for your patients.
           </p>
         </Link>
         <Link

@@ -1,0 +1,23 @@
+Implementation: The "Smart" Onboarding FlowTo make this legally "sticky," her SaaS should not just have one "I Agree" box. She should use Incremental Sign-offs:Screen 1: HIPAA & Telehealth (Legal baseline).Screen 2: Medical History & Doctor’s Fax Number (Clinical baseline).Screen 3: The "BTF Risk Waiver" (The big shield).Screen 4: Payment & Subscription terms.Summary Checklist for SaaS SetupForm NameFormatLegal GoalCA Telehealth ConsentClick-to-SignCA State ComplianceAssumption of RiskInitials RequiredPrevent Negligence LawsuitsSanitation AgreementMandatory CheckboxShift Food Safety LiabilityNPI/Referral UploadFile UploadProfessional Scope Protection
+
+Medical Referral workflow - New patients need to enter their dr's name to collect the referral by e-fax --
+
+Doctors are overwhelmed. If her form looks like a chore, they won't sign it. It needs to be a "Quick-Action" form.
+
+The "30-Second" Referral Header
+RE: [Patient Name] – [DOB]
+Request: Authorization for Medical Nutrition Therapy (MNT) & Whole-Food Blending Education.
+Clinical Goal: Transition from commercial formula to real-food blenderized diet via [G-Tube/J-Tube].
+ICD-10 Code: Z93.1 (Gastrostomy status) — [Already checked for you]
+[ ] I authorize the above-named Registered Dietitian to provide MNT.
+Signature: __________________________ Date: ___________
+
+5. Compliance Checklist (California 2026 Update)
+[ ] AB 489 Disclosure: If the SaaS uses any AI (like an AI chatbot to help with intake), California law now requires she explicitly tell the patient they are interacting with AI, not a human.
+
+[ ] BAA Signed: Ensure she has a Business Associate Agreement signed with whichever SaaS she chooses. Without this, she is not HIPAA compliant.
+
+[ ] NPI Active: Ensure her National Provider Identifier is registered with her California business address (even if it's a home office).
+
+ADDED:
+Database Integration: Their signup flow uses an NPI (National Provider Identifier) lookup. When the patient types their doctor’s name, Nourish pulls the verified fax number from the federal database.

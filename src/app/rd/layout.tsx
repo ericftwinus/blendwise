@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   Users,
   ClipboardCheck,
+  FileText,
   Settings,
   LogOut,
   Menu,
@@ -20,6 +21,7 @@ const navItems = [
   { href: "/rd", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/rd/patients", icon: Users, label: "Patients" },
   { href: "/rd/assessments", icon: ClipboardCheck, label: "Assessment Queue" },
+  { href: "/rd/referrals", icon: FileText, label: "Referrals" },
   { href: "/rd/settings", icon: Settings, label: "Settings" },
 ];
 

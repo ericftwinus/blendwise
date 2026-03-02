@@ -12,6 +12,7 @@ import {
   TrendingUp,
   Calendar,
   Heart,
+  Shield,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -48,6 +49,7 @@ const quickActions = [
 
 interface DashboardData {
   userName: string;
+  onboardingCompleted: boolean;
   hasAssessment: boolean;
   hasNutrientTargets: boolean;
   hasGroceryList: boolean;
@@ -59,6 +61,7 @@ interface DashboardData {
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData>({
     userName: "",
+    onboardingCompleted: false,
     hasAssessment: false,
     hasNutrientTargets: false,
     hasGroceryList: false,
@@ -81,7 +84,7 @@ export default function DashboardPage() {
         supabase.from("nutrient_targets").select("id").eq("user_id", user.id).limit(1),
         supabase.from("grocery_lists").select("id").eq("user_id", user.id).limit(1),
         supabase.from("symptom_logs").select("date, weight").eq("user_id", user.id).order("date", { ascending: false }).limit(30),
-        supabase.from("profiles").select("subscription_tier").eq("id", user.id).single(),
+        supabase.from("profiles").select("subscription_tier, onboarding_completed").eq("id", user.id).single(),
       ]);
 
       // Calculate streak
@@ -104,6 +107,7 @@ export default function DashboardPage() {
 
       setData({
         userName,
+        onboardingCompleted: profileRes.data?.onboarding_completed ?? false,
         hasAssessment: (assessmentRes.data?.length ?? 0) > 0,
         hasNutrientTargets: (targetsRes.data?.length ?? 0) > 0,
         hasGroceryList: (groceryRes.data?.length ?? 0) > 0,
@@ -119,6 +123,7 @@ export default function DashboardPage() {
 
   const checklist = [
     { step: "Create your account", done: true },
+    { step: "Complete onboarding consents", done: data.onboardingCompleted },
     { step: "Complete your RD assessment", done: data.hasAssessment },
     { step: "Review your Estimated Nutrient Needs", done: data.hasNutrientTargets },
     { step: "Generate your first grocery list", done: data.hasGroceryList },
@@ -135,6 +140,28 @@ export default function DashboardPage() {
           Here&apos;s an overview of your BlendWise journey.
         </p>
       </div>
+
+      {!data.onboardingCompleted && (
+        <Link
+          href="/dashboard/onboarding"
+          className="block bg-gradient-to-r from-brand-50 to-blue-50 border border-brand-200 rounded-xl p-5 hover:shadow-md transition group"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-brand-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <Shield className="w-6 h-6 text-brand-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition flex items-center gap-1">
+                Complete Your Onboarding
+                <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition" />
+              </h3>
+              <p className="text-sm text-gray-600 mt-0.5">
+                Sign required consent forms and provide your doctor&apos;s information for referral collection. This is required before your RD can begin.
+              </p>
+            </div>
+          </div>
+        </Link>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[

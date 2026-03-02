@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Leaf,
   LayoutDashboard,
+  Shield,
   ClipboardCheck,
   Salad,
   ShoppingCart,
@@ -22,6 +23,7 @@ import { createClient } from "@/lib/supabase/client";
 
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Overview" },
+  { href: "/dashboard/onboarding", icon: Shield, label: "Onboarding" },
   { href: "/dashboard/assessment", icon: ClipboardCheck, label: "RD Assessment" },
   { href: "/dashboard/nutrients", icon: Activity, label: "Nutrient Targets" },
   { href: "/dashboard/recipes", icon: Salad, label: "Recipes" },

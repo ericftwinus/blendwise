@@ -1,0 +1,193 @@
+================================================================================
+BlendWise — Next Steps & Missing Integrations
+================================================================================
+Last updated: 2026-02-19
+
+================================================================================
+CRITICAL — Must Fix Before Any Paying Customers
+================================================================================
+
+1. HIPAA COMPLIANCE (currently claimed but not real)
+   - PHI (diagnoses, symptoms, allergies, nutrient targets) is sent to xAI
+     Grok API with NO Business Associate Agreement (BAA)
+   - xAI does not offer a HIPAA BAA program — need a HIPAA-eligible LLM
+     provider (e.g., Azure OpenAI, AWS Bedrock, or a self-hosted model)
+   - No audit logging — no record of who accessed/modified patient data
+     (HIPAA Technical Safeguard requirement)
+   - HIPAA Notice of Privacy Practices page is a dead link (href="#")
+   - Terms of Service and Privacy Policy pages are dead links (href="#")
+   - Need a BAA with Supabase (they offer one on Pro/Enterprise plans)
+   - Need breach notification procedures documented
+   - Need data encryption verification (Supabase handles at-rest, but
+     should be verified and documented)
+
+2. PAYMENT / STRIPE INTEGRATION (completely absent)
+   - No Stripe SDK, no checkout flow, no webhook handler
+   - Landing page shows Tier 2 ($39/mo) and Tier 3 ($79/mo) but clicking
+     any pricing CTA just goes to /signup — no tier selection
+   - subscription_tier column in profiles defaults to 1 and is never
+     updated by any code
+   - "Upgrade" buttons in settings and grocery delivery CTA are dead
+   - Need: Stripe integration, checkout flow, subscription management,
+     webhook handler for payment events, tier upgrade/downgrade logic
+
+3. SERVICE ROLE KEY MISCONFIGURATION
+   - .env.local has SUPABASE_SERVICE_ROLE_KEY set to the anon/publishable
+     key (not the actual service role key)
+   - Server-side API routes use NEXT_PUBLIC_SUPABASE_ANON_KEY, meaning
+     privileged operations run under the anon key
+   - The real service role key is in .env under SUPABASE_SERVICE_ROLE_KEY
+   - Need to fix .env.local and ensure API routes use the correct key
+     for server-side operations
+
+================================================================================
+HIGH PRIORITY — MVP Completeness
+================================================================================
+
+4. PASSWORD RESET FLOW
+   - No "Forgot password?" link on the login page
+   - No password reset page or Supabase recovery flow implemented
+   - Need: /forgot-password page, Supabase auth.resetPasswordForEmail(),
+     /auth/callback handling for recovery tokens
+
+5. RD LICENSE VERIFICATION
+   - Currently anyone can self-declare as an RD during signup
+   - No license number validation against any registry
+   - Options: manual admin review, integration with Commission on Dietetic
+     Registration (CDR) verification API, or third-party credentialing
+     service (e.g., Verisys, NPDB)
+
+6. NOTIFICATION SYSTEM
+   - Settings page has notification checkboxes (never persisted)
+   - No email notification service integrated
+   - Need: transactional email (Resend, SendGrid, or Supabase Edge
+     Functions) for assessment status changes, RD assignment, new
+     symptom log alerts for RDs
+
+7. IN-APP MESSAGING (RD <-> Patient)
+   - Mentioned in pricing tiers as a feature, no UI or backend exists
+   - Need: messages table, real-time subscription (Supabase Realtime),
+     chat UI components in both RD and patient portals
+
+8. EDUCATION SECTION
+   - 9 hardcoded video cards with emoji thumbnails
+   - No actual video URLs, no playback, no embeds
+   - "Completed: 0/9" is a static string, never updates
+   - Need: real video content (YouTube/Vimeo embeds or hosted), video
+     completion tracking table, progress persistence
+
+9. PATIENT DISCHARGE/PAUSE UI
+   - Database supports paused/discharged statuses on rd_patient_assignments
+   - No UI button in the RD portal to change assignment status
+   - Need: status toggle or discharge button on /rd/patients/[id]
+
+10. PATIENT VIEW OF ASSIGNED RD
+    - Patients have no way to see which RD is assigned to them
+    - Need: RD info card on patient dashboard showing assigned RD name,
+      specializations, and contact info
+
+================================================================================
+MEDIUM PRIORITY — Feature Completeness
+================================================================================
+
+11. GROCERY DELIVERY API INTEGRATION
+    - UI teaser says "Upgrade to Full Convenience" (Instacart/Amazon/Walmart)
+    - Zero API integration code exists
+    - Instacart has a partner API, Walmart has an affiliate API
+    - Need: API integration, deep-linking or cart prefill
+
+12. WEIGHT TREND CHART
+    - Symptom logs collect weight data daily
+    - Currently shown as a flat list — no chart or graph
+    - Need: chart library (recharts is already a common Next.js choice)
+      to visualize weight trends over time
+
+13. TERMS OF SERVICE & PRIVACY POLICY
+    - Footer links go to href="#"
+    - RD signup references these (also dead links)
+    - Need: actual legal documents, hosted at /terms and /privacy
+
+14. DATA EXPORT & ACCOUNT DELETION
+    - "Download my data" button in settings — dead (no onClick)
+    - "Delete my account" button in settings — dead (no onClick)
+    - Need: data export endpoint (JSON/CSV), account deletion flow
+      with confirmation and Supabase auth.admin.deleteUser()
+
+15. SETTINGS PERSISTENCE
+    - Notification preferences (checkboxes) use defaultChecked and are
+      never saved to the database
+    - Need: notification_preferences column or table, save on toggle
+
+================================================================================
+TESTING & DEPLOYMENT
+================================================================================
+
+16. AUTOMATED TESTING (zero tests exist)
+    - No test files (.test.ts, .spec.ts) anywhere
+    - No Jest, Vitest, Playwright, or Cypress configured
+    - Priority tests needed:
+      * Auth flow (signup, login, role-based redirect)
+      * Assessment form submission and persistence
+      * RD patient assignment and data access (RLS)
+      * API route input validation and error handling
+      * Recipe/grocery generation (mock xAI responses)
+
+17. CI/CD PIPELINE
+    - No .github/workflows/ directory
+    - No Dockerfile or docker-compose.yml
+    - No vercel.json
+    - Need: GitHub Actions for lint + test + build on PR,
+      Vercel or similar for preview + production deployments
+
+18. ENVIRONMENT SECURITY
+    - .env and .env.local contain live credentials
+    - No .env.example file for onboarding new developers
+    - If repo goes public, all keys are exposed
+    - Need: .env.example with placeholder values, secrets in CI/CD
+      environment variables only
+
+================================================================================
+LICENSES & CERTIFICATIONS NEEDED
+================================================================================
+
+Business / Legal:
+  - HIPAA BAA with Supabase (available on Pro plan, ~$25/mo per project)
+  - HIPAA BAA with LLM provider (must switch from xAI to a HIPAA-eligible
+    provider, or use a self-hosted model)
+  - HIPAA policies and procedures documentation
+  - Terms of Service (drafted by healthcare-experienced attorney)
+  - Privacy Policy (must comply with HIPAA, state privacy laws)
+  - HIPAA Notice of Privacy Practices
+  - Potential state-specific telehealth/nutrition counseling regulations
+
+Technical Certifications:
+  - SOC 2 Type II (recommended for healthcare SaaS)
+  - HIPAA Security Risk Assessment (required annually)
+  - Penetration testing report (recommended before launch)
+
+Third-Party Services to Evaluate:
+  - HIPAA-eligible LLM: Azure OpenAI (BAA available), AWS Bedrock,
+    Google Cloud Vertex AI, or self-hosted open-source model
+  - Payment: Stripe (HIPAA-compatible with proper configuration)
+  - Email: Resend or SendGrid (both offer HIPAA plans)
+  - RD Credential Verification: CDR Verification, Verisys
+  - Grocery Delivery: Instacart Partner API, Walmart Affiliate API
+  - Video Hosting: Vimeo OTT or Mux (if custom player needed)
+
+================================================================================
+CURRENT WORKING INTEGRATIONS
+================================================================================
+
+  - Supabase Auth (email/password signup + login)
+  - Supabase PostgreSQL (all data storage, RLS policies)
+  - xAI Grok-3-mini-fast (recipe generation, grocery list generation)
+    NOTE: sends PHI without BAA — must be replaced for compliance
+
+================================================================================
+DATABASE SCHEMA NOTE
+================================================================================
+
+The base schema.sql is missing the role/email columns on profiles and the
+RD portal tables. The migration 001_rd_portal.sql adds them. The seed
+script (seed.sql) includes the migration inline, but if deploying fresh,
+ensure the migration runs after schema.sql.
