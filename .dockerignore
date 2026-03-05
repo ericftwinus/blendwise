@@ -1,0 +1,16 @@
+node_modules
+.next
+.git
+.gitignore
+.env
+.env.*
+*.md
+*.json.bak
+blendwise-nutrition-*.json
+gcp_*.txt
+gcp_*.jpg
+hippa_stuff.txt
+doctor_referral.txt
+referral_form.txt
+.claude
+functions/node_modules

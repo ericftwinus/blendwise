@@ -1,17 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
 import {
-  ShoppingCart,
-  Plus,
-  Trash2,
-  Check,
-  Truck,
-  RefreshCw,
-  Download,
-  Sparkles,
-  Loader2,
+  ShoppingCart, Plus, Trash2, Check, Truck, Download, Sparkles, Loader2,
 } from "lucide-react";
 
 interface GroceryItem {
@@ -29,24 +20,14 @@ export default function GroceryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Load from Supabase on mount
   useEffect(() => {
     async function loadList() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setLoading(false); return; }
-
-      const { data } = await supabase
-        .from("grocery_lists")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
-
-      if (data?.items) {
+      const res = await fetch("/api/dashboard/grocery");
+      if (!res.ok) { setLoading(false); return; }
+      const { list } = await res.json();
+      if (list?.items) {
         try {
-          const parsed = typeof data.items === "string" ? JSON.parse(data.items) : data.items;
+          const parsed = typeof list.items === "string" ? JSON.parse(list.items) : list.items;
           setItems(parsed.map((item: any, i: number) => ({
             id: i + 1,
             name: item.name,
@@ -54,9 +35,7 @@ export default function GroceryPage() {
             quantity: item.quantity || "1",
             checked: item.checked || false,
           })));
-        } catch {
-          // ignore parse errors
-        }
+        } catch { /* ignore parse errors */ }
       }
       setLoading(false);
     }
@@ -67,9 +46,7 @@ export default function GroceryPage() {
   const checkedCount = items.filter((i) => i.checked).length;
 
   function toggleItem(id: number) {
-    setItems((prev) =>
-      prev.map((i) => (i.id === id ? { ...i, checked: !i.checked } : i))
-    );
+    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, checked: !i.checked } : i)));
   }
 
   function removeItem(id: number) {
@@ -78,26 +55,17 @@ export default function GroceryPage() {
 
   function addItem() {
     if (!newItem.trim()) return;
-    setItems((prev) => [
-      ...prev,
-      { id: Date.now(), name: newItem.trim(), category: "Other", quantity: "1", checked: false },
-    ]);
+    setItems((prev) => [...prev, { id: Date.now(), name: newItem.trim(), category: "Other", quantity: "1", checked: false }]);
     setNewItem("");
   }
 
   async function saveList() {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const weekStart = new Date();
-    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-
-    await supabase.from("grocery_lists").upsert({
-      user_id: user.id,
-      week_start: weekStart.toISOString().split("T")[0],
-      items: JSON.stringify(items.map(({ name, category, quantity, checked }) => ({ name, category, quantity, checked }))),
-      updated_at: new Date().toISOString(),
+    await fetch("/api/dashboard/grocery", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        items: items.map(({ name, category, quantity, checked }) => ({ name, category, quantity, checked })),
+      }),
     });
   }
 
@@ -112,17 +80,13 @@ export default function GroceryPage() {
     setGenerating(true);
     setError("");
 
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setGenerating(false); return; }
-
     const [assessmentRes, targetsRes] = await Promise.all([
-      supabase.from("assessments").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).single(),
-      supabase.from("nutrient_targets").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).single(),
+      fetch("/api/dashboard/assessment"),
+      fetch("/api/dashboard/nutrients"),
     ]);
 
-    const assessment = assessmentRes.data;
-    const targets = targetsRes.data;
+    const { assessment } = assessmentRes.ok ? await assessmentRes.json() : { assessment: null };
+    const { targets } = targetsRes.ok ? await targetsRes.json() : { targets: null };
 
     try {
       const res = await fetch("/api/generate-grocery", {
@@ -132,8 +96,8 @@ export default function GroceryPage() {
           nutrientTargets: targets,
           allergies: assessment?.allergies,
           intolerances: assessment?.intolerances,
-          dietaryPreferences: assessment?.dietary_preferences,
-          giSymptoms: assessment?.gi_symptoms,
+          dietaryPreferences: assessment?.dietaryPreferences,
+          giSymptoms: assessment?.giSymptoms,
         }),
       });
 
@@ -142,11 +106,7 @@ export default function GroceryPage() {
         setError(data.error);
       } else if (data.items) {
         setItems(data.items.map((item: any, i: number) => ({
-          id: i + 1,
-          name: item.name,
-          category: item.category || "Other",
-          quantity: item.quantity || "1",
-          checked: false,
+          id: i + 1, name: item.name, category: item.category || "Other", quantity: item.quantity || "1", checked: false,
         })));
       }
     } catch {
@@ -183,35 +143,24 @@ export default function GroceryPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={generateList}
-            disabled={generating}
+          <button onClick={generateList} disabled={generating}
             className="flex items-center gap-1.5 text-sm bg-brand-600 text-white px-3 py-2 rounded-lg hover:bg-brand-700 disabled:opacity-50 transition"
           >
             {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
             {generating ? "Generating..." : "AI Generate"}
           </button>
-          <button
-            onClick={exportList}
-            disabled={items.length === 0}
+          <button onClick={exportList} disabled={items.length === 0}
             className="flex items-center gap-1.5 text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 disabled:opacity-50 transition"
-          >
-            <Download className="w-4 h-4" /> Export
-          </button>
+          ><Download className="w-4 h-4" /> Export</button>
         </div>
       </div>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3">
-          {error}
-        </div>
-      )}
+      {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3">{error}</div>}
 
       {loading ? (
         <div className="text-center py-12 text-gray-400">Loading...</div>
       ) : (
         <>
-          {/* Progress */}
           {items.length > 0 && (
             <div className="bg-white rounded-xl border border-gray-200 p-4">
               <div className="flex items-center justify-between mb-2">
@@ -219,30 +168,21 @@ export default function GroceryPage() {
                 <span className="text-sm text-gray-500">{checkedCount}/{items.length} items</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className="bg-brand-600 h-2 rounded-full transition-all"
+                <div className="bg-brand-600 h-2 rounded-full transition-all"
                   style={{ width: `${items.length ? (checkedCount / items.length) * 100 : 0}%` }}
                 />
               </div>
             </div>
           )}
 
-          {/* Add item */}
           <div className="flex gap-2">
-            <input
-              type="text"
-              value={newItem}
-              onChange={(e) => setNewItem(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && addItem()}
-              placeholder="Add a custom item..."
+            <input type="text" value={newItem} onChange={(e) => setNewItem(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && addItem()} placeholder="Add a custom item..."
               className="flex-1 border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none text-sm"
             />
-            <button
-              onClick={addItem}
+            <button onClick={addItem}
               className="flex items-center gap-1 bg-brand-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-brand-700 transition"
-            >
-              <Plus className="w-4 h-4" /> Add
-            </button>
+            ><Plus className="w-4 h-4" /> Add</button>
           </div>
 
           {items.length === 0 ? (
@@ -255,39 +195,22 @@ export default function GroceryPage() {
             <div className="space-y-6">
               {categories.map((category) => (
                 <div key={category}>
-                  <h2 className="text-sm font-semibold text-gray-900 mb-2 uppercase tracking-wide">
-                    {category}
-                  </h2>
+                  <h2 className="text-sm font-semibold text-gray-900 mb-2 uppercase tracking-wide">{category}</h2>
                   <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
-                    {items
-                      .filter((i) => i.category === category)
-                      .map((item) => (
-                        <div
-                          key={item.id}
-                          className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition"
-                        >
-                          <button
-                            onClick={() => toggleItem(item.id)}
-                            className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition ${
-                              item.checked
-                                ? "bg-brand-600 border-brand-600"
-                                : "border-gray-300 hover:border-brand-400"
-                            }`}
-                          >
-                            {item.checked && <Check className="w-3 h-3 text-white" />}
-                          </button>
-                          <span className={`flex-1 text-sm ${item.checked ? "text-gray-400 line-through" : "text-gray-700"}`}>
-                            {item.name}
-                          </span>
-                          <span className="text-xs text-gray-400">{item.quantity}</span>
-                          <button
-                            onClick={() => removeItem(item.id)}
-                            className="p-1 text-gray-300 hover:text-red-500 transition"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ))}
+                    {items.filter((i) => i.category === category).map((item) => (
+                      <div key={item.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition">
+                        <button onClick={() => toggleItem(item.id)}
+                          className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition ${
+                            item.checked ? "bg-brand-600 border-brand-600" : "border-gray-300 hover:border-brand-400"
+                          }`}
+                        >{item.checked && <Check className="w-3 h-3 text-white" />}</button>
+                        <span className={`flex-1 text-sm ${item.checked ? "text-gray-400 line-through" : "text-gray-700"}`}>{item.name}</span>
+                        <span className="text-xs text-gray-400">{item.quantity}</span>
+                        <button onClick={() => removeItem(item.id)} className="p-1 text-gray-300 hover:text-red-500 transition">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 </div>
               ))}
@@ -296,14 +219,13 @@ export default function GroceryPage() {
         </>
       )}
 
-      {/* Delivery CTA */}
       <div className="bg-gradient-to-r from-brand-600 to-brand-700 rounded-xl p-6 text-white">
         <div className="flex items-center gap-3 mb-3">
           <Truck className="w-8 h-8" />
           <div>
             <h3 className="text-lg font-semibold">Get Groceries Delivered</h3>
             <p className="text-sm text-brand-100">
-              Available with Tier 3 subscription — one-click ordering through Instacart, Amazon Fresh, or Walmart.
+              Available with Tier 3 subscription \u2014 one-click ordering through Instacart, Amazon Fresh, or Walmart.
             </p>
           </div>
         </div>

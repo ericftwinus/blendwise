@@ -14,7 +14,6 @@ import {
   Heart,
   Shield,
 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 
 const quickActions = [
   {
@@ -72,49 +71,10 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const userName = user.user_metadata?.full_name || "there";
-
-      // Fetch all in parallel
-      const [assessmentRes, targetsRes, groceryRes, logsRes, profileRes] = await Promise.all([
-        supabase.from("assessments").select("id").eq("user_id", user.id).limit(1),
-        supabase.from("nutrient_targets").select("id").eq("user_id", user.id).limit(1),
-        supabase.from("grocery_lists").select("id").eq("user_id", user.id).limit(1),
-        supabase.from("symptom_logs").select("date, weight").eq("user_id", user.id).order("date", { ascending: false }).limit(30),
-        supabase.from("profiles").select("subscription_tier, onboarding_completed").eq("id", user.id).single(),
-      ]);
-
-      // Calculate streak
-      let streak = 0;
-      if (logsRes.data && logsRes.data.length > 0) {
-        const today = new Date();
-        for (let i = 0; i < logsRes.data.length; i++) {
-          const expected = new Date(today);
-          expected.setDate(expected.getDate() - i);
-          const expectedStr = expected.toISOString().split("T")[0];
-          if (logsRes.data[i].date === expectedStr) {
-            streak++;
-          } else {
-            break;
-          }
-        }
-      }
-
-      const lastWeight = logsRes.data?.[0]?.weight ? `${logsRes.data[0].weight} lbs` : null;
-
-      setData({
-        userName,
-        onboardingCompleted: profileRes.data?.onboarding_completed ?? false,
-        hasAssessment: (assessmentRes.data?.length ?? 0) > 0,
-        hasNutrientTargets: (targetsRes.data?.length ?? 0) > 0,
-        hasGroceryList: (groceryRes.data?.length ?? 0) > 0,
-        lastWeight,
-        logStreak: streak,
-        tier: profileRes.data?.subscription_tier ?? 1,
-      });
+      const res = await fetch("/api/dashboard/summary");
+      if (!res.ok) return;
+      const json = await res.json();
+      setData(json);
     }
     load();
   }, []);
@@ -134,7 +94,7 @@ export default function DashboardPage() {
     <div className="max-w-6xl mx-auto space-y-8">
       <div>
         <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-          Welcome back, {data.userName}
+          Welcome back, {data.userName || "there"}
         </h1>
         <p className="text-gray-500 mt-1">
           Here&apos;s an overview of your BlendWise journey.

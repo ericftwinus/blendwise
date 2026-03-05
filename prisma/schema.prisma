@@ -1,0 +1,279 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id // Firebase UID
+  email     String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+
+  profile              Profile?
+  rdProfile            RdProfile?
+  assessments          Assessment[]
+  nutrientTargets      NutrientTarget[]
+  symptomLogs          SymptomLog[]
+  groceryLists         GroceryList[]
+  savedRecipes         SavedRecipe[]
+  consents             PatientConsent[]
+  referralsAsPatient   DoctorReferral[]     @relation("PatientReferrals")
+  referralsAsRd        DoctorReferral[]     @relation("RdReferrals")
+  rdAssignmentsAsRd    RdPatientAssignment[] @relation("RdAssignments")
+  rdAssignmentsAsPatient RdPatientAssignment[] @relation("PatientAssignments")
+  assessmentsReviewed  Assessment[]         @relation("ReviewedAssessments")
+  nutrientTargetsSet   NutrientTarget[]     @relation("SetByRd")
+
+  @@map("users")
+}
+
+model Profile {
+  id                  String   @id @default(uuid())
+  userId              String   @unique @map("user_id")
+  fullName            String?  @map("full_name")
+  email               String?
+  role                String   @default("patient")
+  subscriptionTier    Int      @default(1) @map("subscription_tier")
+  phone               String?
+  addressLine1        String?  @map("address_line1")
+  addressCity         String?  @map("address_city")
+  addressState        String?  @map("address_state")
+  addressZip          String?  @map("address_zip")
+  dateOfBirth         String?  @map("date_of_birth")
+  mrn                 String?
+  onboardingCompleted Boolean  @default(false) @map("onboarding_completed")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+model RdProfile {
+  id               String   @id @default(uuid())
+  userId           String   @unique @map("user_id")
+  licenseNumber    String?  @map("license_number")
+  licenseState     String?  @map("license_state")
+  specializations  String[] @default([])
+  bio              String?
+  acceptingPatients Boolean @default(true) @map("accepting_patients")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("rd_profiles")
+}
+
+model RdPatientAssignment {
+  id        String   @id @default(uuid())
+  rdId      String   @map("rd_id")
+  patientId String   @map("patient_id")
+  status    String   @default("active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  rd      User @relation("RdAssignments", fields: [rdId], references: [id], onDelete: Cascade)
+  patient User @relation("PatientAssignments", fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@unique([rdId, patientId])
+  @@map("rd_patient_assignments")
+}
+
+model Assessment {
+  id                String   @id @default(uuid())
+  userId            String   @map("user_id")
+  diagnosis         String?
+  tubeType          String?  @map("tube_type")
+  tubePlacementDate String?  @map("tube_placement_date")
+  currentFormula    String?  @map("current_formula")
+  feedingSchedule   String?  @map("feeding_schedule")
+  dailyVolume       String?  @map("daily_volume")
+  giSymptoms        String[] @default([]) @map("gi_symptoms")
+  giNotes           String?  @map("gi_notes")
+  allergies         String?
+  intolerances      String?
+  dietaryPreferences String[] @default([]) @map("dietary_preferences")
+  dietaryNotes      String?  @map("dietary_notes")
+  hasBlender        Boolean  @default(false) @map("has_blender")
+  blenderType       String?  @map("blender_type")
+  hasFoodStorage    Boolean  @default(false) @map("has_food_storage")
+  hasKitchenScale   Boolean  @default(false) @map("has_kitchen_scale")
+  feedingGoal       String?  @map("feeding_goal")
+  additionalNotes   String?  @map("additional_notes")
+  paymentMethod     String?  @map("payment_method")
+  insuranceProvider String?  @map("insurance_provider")
+  status            String   @default("submitted")
+  reviewedBy        String?  @map("reviewed_by")
+  reviewedAt        DateTime? @map("reviewed_at")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at")
+
+  user     User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewer User? @relation("ReviewedAssessments", fields: [reviewedBy], references: [id])
+
+  @@map("assessments")
+}
+
+model NutrientTarget {
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id")
+  caloriesMin     Int?     @map("calories_min")
+  caloriesMax     Int?     @map("calories_max")
+  proteinMin      Int?     @map("protein_min")
+  proteinMax      Int?     @map("protein_max")
+  carbsMin        Int?     @map("carbs_min")
+  carbsMax        Int?     @map("carbs_max")
+  fatMin          Int?     @map("fat_min")
+  fatMax          Int?     @map("fat_max")
+  fiberMin        Int?     @map("fiber_min")
+  fiberMax        Int?     @map("fiber_max")
+  fluidsMin       Int?     @map("fluids_min")
+  fluidsMax       Int?     @map("fluids_max")
+  feedingSchedule String?  @map("feeding_schedule")
+  safetyNotes     String?  @map("safety_notes")
+  rdNotes         String?  @map("rd_notes")
+  setBy           String?  @map("set_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rdUser User? @relation("SetByRd", fields: [setBy], references: [id])
+
+  @@map("nutrient_targets")
+}
+
+model SymptomLog {
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id")
+  date            String
+  weight          Float?
+  symptoms        String[] @default([])
+  severity        Int      @default(1)
+  intakeCompleted Boolean  @default(true) @map("intake_completed")
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("symptom_logs")
+}
+
+model GroceryList {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  weekStart String?  @map("week_start")
+  items     Json?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStart])
+  @@map("grocery_lists")
+}
+
+model SavedRecipe {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  recipeName   String   @map("recipe_name")
+  ingredients  Json?
+  instructions String?
+  calories     Int?
+  protein      Int?
+  volumeMl     Int?     @map("volume_ml")
+  prepTime     String?  @map("prep_time")
+  tags         String[] @default([])
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("saved_recipes")
+}
+
+model PatientConsent {
+  id             String    @id @default(uuid())
+  userId         String    @map("user_id")
+  consentType    String    @map("consent_type")
+  consented      Boolean   @default(false)
+  initials       String?
+  signedAt       DateTime? @map("signed_at")
+  consentVersion String    @default("1.0") @map("consent_version")
+  ipAddress      String?   @map("ip_address")
+  userAgent      String?   @map("user_agent")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, consentType])
+  @@map("patient_consents")
+}
+
+model DoctorReferral {
+  id                   String    @id @default(uuid())
+  patientId            String    @map("patient_id")
+  doctorName           String    @map("doctor_name")
+  doctorFax            String?   @map("doctor_fax")
+  doctorPhone          String?   @map("doctor_phone")
+  doctorEmail          String?   @map("doctor_email")
+  doctorPractice       String?   @map("doctor_practice")
+  doctorNpi            String?   @map("doctor_npi")
+  doctorCredential     String?   @map("doctor_credential")
+  doctorTaxonomy       String?   @map("doctor_taxonomy")
+  doctorAddressLine1   String?   @map("doctor_address_line1")
+  doctorAddressCity    String?   @map("doctor_address_city")
+  doctorAddressState   String?   @map("doctor_address_state")
+  doctorAddressZip     String?   @map("doctor_address_zip")
+  patientDiagnosis     String?   @map("patient_diagnosis")
+  patientDob           String?   @map("patient_dob")
+  patientTubeType      String?   @map("patient_tube_type")
+  clinicalGoal         String?   @map("clinical_goal")
+  currentFormula       String?   @map("current_formula")
+  dailyVolume          String?   @map("daily_volume")
+  giSymptoms           String[]  @default([]) @map("gi_symptoms")
+  insurance            String?
+  policyNumber         String?   @map("policy_number")
+  icd10Codes           String[]  @default([]) @map("icd10_codes")
+  primaryDiagnosisIcd10 String?  @map("primary_diagnosis_icd10")
+  supportingInfoCodes  String[]  @default([]) @map("supporting_info_codes")
+  pdfStoragePath       String?   @map("pdf_storage_path")
+  signedPdfStoragePath String?   @map("signed_pdf_storage_path")
+  faxAttempts          Int       @default(0) @map("fax_attempts")
+  lastFaxAttemptAt     DateTime? @map("last_fax_attempt_at")
+  faxProviderId        String?   @map("fax_provider_id")
+  referralStatus       String    @default("pending") @map("referral_status")
+  referralSentAt       DateTime? @map("referral_sent_at")
+  referralSignedAt     DateTime? @map("referral_signed_at")
+  notes                String?
+  rdId                 String?   @map("rd_id")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  patient  User       @relation("PatientReferrals", fields: [patientId], references: [id], onDelete: Cascade)
+  rd       User?      @relation("RdReferrals", fields: [rdId], references: [id])
+  faxLogs  FaxLog[]
+
+  @@unique([patientId])
+  @@map("doctor_referrals")
+}
+
+model FaxLog {
+  id            String   @id @default(uuid())
+  referralId    String?  @map("referral_id")
+  eventType     String   @map("event_type")
+  providerJobId String?  @map("provider_job_id")
+  toNumber      String?  @map("to_number")
+  fromNumber    String?  @map("from_number")
+  pages         Int?
+  errorMessage  String?  @map("error_message")
+  webhookPayload Json?   @map("webhook_payload")
+  attemptNumber Int      @default(1) @map("attempt_number")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  referral DoctorReferral? @relation(fields: [referralId], references: [id], onDelete: SetNull)
+
+  @@map("fax_logs")
+}

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
 import {
   ClipboardCheck,
   ChevronRight,
@@ -20,28 +19,13 @@ const feedingTypes = [
 ];
 
 const giSymptoms = [
-  "Nausea",
-  "Vomiting",
-  "Diarrhea",
-  "Constipation",
-  "Bloating",
-  "Abdominal pain",
-  "Reflux/GERD",
-  "Gas",
-  "Dumping syndrome",
-  "None",
+  "Nausea", "Vomiting", "Diarrhea", "Constipation", "Bloating",
+  "Abdominal pain", "Reflux/GERD", "Gas", "Dumping syndrome", "None",
 ];
 
 const dietaryPreferences = [
-  "No restrictions",
-  "Vegetarian",
-  "Vegan",
-  "Gluten-free",
-  "Dairy-free",
-  "Low-sodium",
-  "Kosher",
-  "Halal",
-  "Other",
+  "No restrictions", "Vegetarian", "Vegan", "Gluten-free", "Dairy-free",
+  "Low-sodium", "Kosher", "Halal", "Other",
 ];
 
 export default function AssessmentPage() {
@@ -50,72 +34,55 @@ export default function AssessmentPage() {
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({
-    // Medical History
     diagnosis: "",
     tubeType: "",
     tubePlacementDate: "",
     currentFormula: "",
     feedingSchedule: "",
     dailyVolume: "",
-    // GI Symptoms
     giSymptoms: [] as string[],
     giNotes: "",
-    // Allergies
     allergies: "",
     intolerances: "",
-    // Dietary Preferences
     dietaryPreferences: [] as string[],
     dietaryNotes: "",
-    // Equipment
     hasBlender: false,
     blenderType: "",
     hasFoodStorage: false,
     hasKitchenScale: false,
-    // Goals
     feedingGoal: "",
     additionalNotes: "",
-    // Payment
     paymentMethod: "",
     insuranceProvider: "",
   });
 
-  // Load existing assessment on mount
   useEffect(() => {
     async function loadAssessment() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setLoading(false); return; }
-
-      const { data } = await supabase
-        .from("assessments")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
-
-      if (data) {
+      const res = await fetch("/api/dashboard/assessment");
+      if (!res.ok) { setLoading(false); return; }
+      const { assessment } = await res.json();
+      if (assessment) {
         setForm({
-          diagnosis: data.diagnosis || "",
-          tubeType: data.tube_type || "",
-          tubePlacementDate: data.tube_placement_date || "",
-          currentFormula: data.current_formula || "",
-          feedingSchedule: data.feeding_schedule || "",
-          dailyVolume: data.daily_volume || "",
-          giSymptoms: data.gi_symptoms || [],
-          giNotes: data.gi_notes || "",
-          allergies: data.allergies || "",
-          intolerances: data.intolerances || "",
-          dietaryPreferences: data.dietary_preferences || [],
-          dietaryNotes: data.dietary_notes || "",
-          hasBlender: data.has_blender || false,
-          blenderType: data.blender_type || "",
-          hasFoodStorage: data.has_food_storage || false,
-          hasKitchenScale: data.has_kitchen_scale || false,
-          feedingGoal: data.feeding_goal || "",
-          additionalNotes: data.additional_notes || "",
-          paymentMethod: data.payment_method || "",
-          insuranceProvider: data.insurance_provider || "",
+          diagnosis: assessment.diagnosis || "",
+          tubeType: assessment.tubeType || "",
+          tubePlacementDate: assessment.tubePlacementDate || "",
+          currentFormula: assessment.currentFormula || "",
+          feedingSchedule: assessment.feedingSchedule || "",
+          dailyVolume: assessment.dailyVolume || "",
+          giSymptoms: assessment.giSymptoms || [],
+          giNotes: assessment.giNotes || "",
+          allergies: assessment.allergies || "",
+          intolerances: assessment.intolerances || "",
+          dietaryPreferences: assessment.dietaryPreferences || [],
+          dietaryNotes: assessment.dietaryNotes || "",
+          hasBlender: assessment.hasBlender || false,
+          blenderType: assessment.blenderType || "",
+          hasFoodStorage: assessment.hasFoodStorage || false,
+          hasKitchenScale: assessment.hasKitchenScale || false,
+          feedingGoal: assessment.feedingGoal || "",
+          additionalNotes: assessment.additionalNotes || "",
+          paymentMethod: assessment.paymentMethod || "",
+          insuranceProvider: assessment.insuranceProvider || "",
         });
       }
       setLoading(false);
@@ -147,36 +114,11 @@ export default function AssessmentPage() {
 
   async function handleSubmit() {
     setSaving(true);
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (user) {
-      await supabase.from("assessments").upsert({
-        user_id: user.id,
-        diagnosis: form.diagnosis,
-        tube_type: form.tubeType,
-        tube_placement_date: form.tubePlacementDate || null,
-        current_formula: form.currentFormula,
-        feeding_schedule: form.feedingSchedule,
-        daily_volume: form.dailyVolume,
-        gi_symptoms: form.giSymptoms,
-        gi_notes: form.giNotes,
-        allergies: form.allergies,
-        intolerances: form.intolerances,
-        dietary_preferences: form.dietaryPreferences,
-        dietary_notes: form.dietaryNotes,
-        has_blender: form.hasBlender,
-        blender_type: form.blenderType,
-        has_food_storage: form.hasFoodStorage,
-        has_kitchen_scale: form.hasKitchenScale,
-        feeding_goal: form.feedingGoal,
-        additional_notes: form.additionalNotes,
-        payment_method: form.paymentMethod,
-        insurance_provider: form.insuranceProvider,
-        updated_at: new Date().toISOString(),
-      });
-    }
-
+    await fetch("/api/dashboard/assessment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    });
     setSaving(false);
     setSaved(true);
   }
@@ -241,26 +183,20 @@ export default function AssessmentPage() {
           <p className="text-sm text-gray-600">Select all current GI symptoms you experience:</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {giSymptoms.map((symptom) => (
-              <button
-                key={symptom}
-                type="button"
-                onClick={() => toggleSymptom(symptom)}
+              <button key={symptom} type="button" onClick={() => toggleSymptom(symptom)}
                 className={`text-sm px-3 py-2 rounded-lg border transition text-left ${
                   form.giSymptoms.includes(symptom)
                     ? "bg-brand-50 border-brand-300 text-brand-700"
                     : "border-gray-200 text-gray-600 hover:border-gray-300"
                 }`}
-              >
-                {symptom}
-              </button>
+              >{symptom}</button>
             ))}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Additional Notes</label>
             <textarea value={form.giNotes} onChange={(e) => updateField("giNotes", e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
-              rows={3}
-              placeholder="Describe the frequency and severity of your symptoms..."
+              rows={3} placeholder="Describe the frequency and severity of your symptoms..."
             />
           </div>
         </div>
@@ -274,16 +210,14 @@ export default function AssessmentPage() {
             <label className="block text-sm font-medium text-gray-700 mb-1">Food Allergies</label>
             <textarea value={form.allergies} onChange={(e) => updateField("allergies", e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
-              rows={3}
-              placeholder="List any food allergies (e.g., peanuts, tree nuts, shellfish, eggs...)&#10;Type 'None' if no allergies."
+              rows={3} placeholder="List any food allergies (e.g., peanuts, tree nuts, shellfish, eggs...)&#10;Type 'None' if no allergies."
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Food Intolerances</label>
             <textarea value={form.intolerances} onChange={(e) => updateField("intolerances", e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
-              rows={3}
-              placeholder="List any food intolerances (e.g., lactose, fructose, high-FODMAP foods...)&#10;Type 'None' if no intolerances."
+              rows={3} placeholder="List any food intolerances (e.g., lactose, fructose, high-FODMAP foods...)&#10;Type 'None' if no intolerances."
             />
           </div>
         </div>
@@ -296,26 +230,20 @@ export default function AssessmentPage() {
           <p className="text-sm text-gray-600">Select all that apply:</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {dietaryPreferences.map((pref) => (
-              <button
-                key={pref}
-                type="button"
-                onClick={() => togglePref(pref)}
+              <button key={pref} type="button" onClick={() => togglePref(pref)}
                 className={`text-sm px-3 py-2 rounded-lg border transition text-left ${
                   form.dietaryPreferences.includes(pref)
                     ? "bg-brand-50 border-brand-300 text-brand-700"
                     : "border-gray-200 text-gray-600 hover:border-gray-300"
                 }`}
-              >
-                {pref}
-              </button>
+              >{pref}</button>
             ))}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Additional Notes</label>
             <textarea value={form.dietaryNotes} onChange={(e) => updateField("dietaryNotes", e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
-              rows={2}
-              placeholder="Any other dietary preferences or cultural food considerations..."
+              rows={2} placeholder="Any other dietary preferences or cultural food considerations..."
             />
           </div>
         </div>
@@ -373,8 +301,7 @@ export default function AssessmentPage() {
             <label className="block text-sm font-medium text-gray-700 mb-1">Additional Notes for Your RD</label>
             <textarea value={form.additionalNotes} onChange={(e) => updateField("additionalNotes", e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
-              rows={3}
-              placeholder="Anything else you'd like your Registered Dietitian to know..."
+              rows={3} placeholder="Anything else you'd like your Registered Dietitian to know..."
             />
           </div>
           <div>
@@ -437,15 +364,9 @@ export default function AssessmentPage() {
         </p>
       </div>
 
-      {/* Progress */}
       <div className="flex items-center gap-1 mb-6">
         {steps.map((_, i) => (
-          <div
-            key={i}
-            className={`h-1.5 flex-1 rounded-full transition ${
-              i <= step ? "bg-brand-600" : "bg-gray-200"
-            }`}
-          />
+          <div key={i} className={`h-1.5 flex-1 rounded-full transition ${i <= step ? "bg-brand-600" : "bg-gray-200"}`} />
         ))}
       </div>
 
@@ -453,32 +374,22 @@ export default function AssessmentPage() {
         <h2 className="text-lg font-semibold text-gray-900 mb-1">
           Step {step + 1} of {steps.length}: {steps[step].title}
         </h2>
-        <div className="text-sm text-gray-500 mb-6">
-          {step + 1}/{steps.length}
-        </div>
-
+        <div className="text-sm text-gray-500 mb-6">{step + 1}/{steps.length}</div>
         {steps[step].content}
-
         <div className="flex items-center justify-between mt-8 pt-4 border-t border-gray-100">
-          <button
-            onClick={() => setStep((s) => s - 1)}
-            disabled={step === 0}
+          <button onClick={() => setStep((s) => s - 1)} disabled={step === 0}
             className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-30 transition"
           >
             <ChevronLeft className="w-4 h-4" /> Previous
           </button>
-
           {step < steps.length - 1 ? (
-            <button
-              onClick={() => setStep((s) => s + 1)}
+            <button onClick={() => setStep((s) => s + 1)}
               className="flex items-center gap-1 bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-brand-700 transition"
             >
               Next <ChevronRight className="w-4 h-4" />
             </button>
           ) : (
-            <button
-              onClick={handleSubmit}
-              disabled={saving}
+            <button onClick={handleSubmit} disabled={saving}
               className="flex items-center gap-1 bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-brand-700 disabled:opacity-50 transition"
             >
               <Save className="w-4 h-4" />

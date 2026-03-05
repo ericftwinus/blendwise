@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { Settings, User, Bell, Shield, CreditCard, Save, Users } from "lucide-react";
 
 export default function SettingsPage() {
@@ -11,18 +10,23 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      setFullName(data.user?.user_metadata?.full_name || "");
-      setEmail(data.user?.email || "");
-    });
+    async function load() {
+      const res = await fetch("/api/dashboard/settings");
+      if (res.ok) {
+        const { profile, email: userEmail } = await res.json();
+        setFullName(profile?.fullName || "");
+        setEmail(userEmail || "");
+      }
+    }
+    load();
   }, []);
 
   async function handleSave() {
     setSaving(true);
-    const supabase = createClient();
-    await supabase.auth.updateUser({
-      data: { full_name: fullName },
+    await fetch("/api/dashboard/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fullName }),
     });
     setSaving(false);
     setSaved(true);

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import {
   ArrowLeft,
   ClipboardCheck,
@@ -17,48 +16,48 @@ type Tab = "assessment" | "nutrients" | "logs";
 interface Assessment {
   id: string;
   diagnosis: string | null;
-  tube_type: string | null;
-  tube_placement_date: string | null;
-  current_formula: string | null;
-  feeding_schedule: string | null;
-  daily_volume: string | null;
-  gi_symptoms: string[];
-  gi_notes: string | null;
+  tubeType: string | null;
+  tubePlacementDate: string | null;
+  currentFormula: string | null;
+  feedingSchedule: string | null;
+  dailyVolume: string | null;
+  giSymptoms: string[];
+  giNotes: string | null;
   allergies: string | null;
   intolerances: string | null;
-  dietary_preferences: string[];
-  dietary_notes: string | null;
-  has_blender: boolean;
-  blender_type: string | null;
-  has_food_storage: boolean;
-  has_kitchen_scale: boolean;
-  feeding_goal: string | null;
-  additional_notes: string | null;
-  payment_method: string | null;
-  insurance_provider: string | null;
+  dietaryPreferences: string[];
+  dietaryNotes: string | null;
+  hasBlender: boolean;
+  blenderType: string | null;
+  hasFoodStorage: boolean;
+  hasKitchenScale: boolean;
+  feedingGoal: string | null;
+  additionalNotes: string | null;
+  paymentMethod: string | null;
+  insuranceProvider: string | null;
   status: string;
-  created_at: string;
-  reviewed_by: string | null;
-  reviewed_at: string | null;
+  createdAt: string;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
 }
 
 interface NutrientTargets {
   id?: string;
-  calories_min: number | null;
-  calories_max: number | null;
-  protein_min: number | null;
-  protein_max: number | null;
-  carbs_min: number | null;
-  carbs_max: number | null;
-  fat_min: number | null;
-  fat_max: number | null;
-  fiber_min: number | null;
-  fiber_max: number | null;
-  fluids_min: number | null;
-  fluids_max: number | null;
-  feeding_schedule: string | null;
-  safety_notes: string | null;
-  rd_notes: string | null;
+  caloriesMin: number | null;
+  caloriesMax: number | null;
+  proteinMin: number | null;
+  proteinMax: number | null;
+  carbsMin: number | null;
+  carbsMax: number | null;
+  fatMin: number | null;
+  fatMax: number | null;
+  fiberMin: number | null;
+  fiberMax: number | null;
+  fluidsMin: number | null;
+  fluidsMax: number | null;
+  feedingSchedule: string | null;
+  safetyNotes: string | null;
+  rdNotes: string | null;
 }
 
 interface LogEntry {
@@ -67,27 +66,27 @@ interface LogEntry {
   weight: number | null;
   symptoms: string[];
   severity: number;
-  intake_completed: boolean;
+  intakeCompleted: boolean;
   notes: string | null;
-  created_at: string;
+  createdAt: string;
 }
 
 const emptyTargets: NutrientTargets = {
-  calories_min: null,
-  calories_max: null,
-  protein_min: null,
-  protein_max: null,
-  carbs_min: null,
-  carbs_max: null,
-  fat_min: null,
-  fat_max: null,
-  fiber_min: null,
-  fiber_max: null,
-  fluids_min: null,
-  fluids_max: null,
-  feeding_schedule: null,
-  safety_notes: null,
-  rd_notes: null,
+  caloriesMin: null,
+  caloriesMax: null,
+  proteinMin: null,
+  proteinMax: null,
+  carbsMin: null,
+  carbsMax: null,
+  fatMin: null,
+  fatMax: null,
+  fiberMin: null,
+  fiberMax: null,
+  fluidsMin: null,
+  fluidsMax: null,
+  feedingSchedule: null,
+  safetyNotes: null,
+  rdNotes: null,
 };
 
 export default function PatientDetailPage() {
@@ -109,54 +108,27 @@ export default function PatientDetailPage() {
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient();
-
-      // Load patient profile
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("full_name, email")
-        .eq("id", patientId)
-        .single();
-
-      if (profile) {
-        setPatientName(profile.full_name || "Unknown");
-        setPatientEmail(profile.email || "");
+      const res = await fetch(`/api/rd/patients/${patientId}`);
+      if (!res.ok) {
+        setLoading(false);
+        return;
       }
 
-      // Load assessment
-      const { data: assessmentData } = await supabase
-        .from("assessments")
-        .select("*")
-        .eq("user_id", patientId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
+      const data = await res.json();
 
-      if (assessmentData) setAssessment(assessmentData);
-
-      // Load nutrient targets
-      const { data: targetData } = await supabase
-        .from("nutrient_targets")
-        .select("*")
-        .eq("user_id", patientId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
-
-      if (targetData) {
-        setTargets(targetData);
-        setExistingTargetId(targetData.id);
+      if (data.profile) {
+        setPatientName(data.profile.fullName || "Unknown");
+        setPatientEmail(data.profile.email || "");
       }
 
-      // Load symptom logs
-      const { data: logData } = await supabase
-        .from("symptom_logs")
-        .select("*")
-        .eq("user_id", patientId)
-        .order("date", { ascending: false })
-        .limit(30);
+      if (data.assessment) setAssessment(data.assessment);
 
-      if (logData) setLogs(logData);
+      if (data.targets) {
+        setTargets(data.targets);
+        setExistingTargetId(data.targets.id);
+      }
+
+      if (data.logs) setLogs(data.logs);
 
       setLoading(false);
     }
@@ -167,22 +139,19 @@ export default function PatientDetailPage() {
     if (!assessment) return;
     setReviewSaving(true);
 
-    const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    await supabase
-      .from("assessments")
-      .update({
+    const res = await fetch(`/api/rd/patients/${patientId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "review",
+        assessmentId: assessment.id,
         status: newStatus,
-        reviewed_by: user?.id,
-        reviewed_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", assessment.id);
+      }),
+    });
 
-    setAssessment({ ...assessment, status: newStatus });
+    if (res.ok) {
+      setAssessment({ ...assessment, status: newStatus });
+    }
     setReviewSaving(false);
   }
 
@@ -190,44 +159,33 @@ export default function PatientDetailPage() {
     setSaving(true);
     setSaved(false);
 
-    const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const res = await fetch(`/api/rd/patients/${patientId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "targets",
+        targetId: existingTargetId,
+        caloriesMin: targets.caloriesMin,
+        caloriesMax: targets.caloriesMax,
+        proteinMin: targets.proteinMin,
+        proteinMax: targets.proteinMax,
+        carbsMin: targets.carbsMin,
+        carbsMax: targets.carbsMax,
+        fatMin: targets.fatMin,
+        fatMax: targets.fatMax,
+        fiberMin: targets.fiberMin,
+        fiberMax: targets.fiberMax,
+        fluidsMin: targets.fluidsMin,
+        fluidsMax: targets.fluidsMax,
+        feedingSchedule: targets.feedingSchedule,
+        safetyNotes: targets.safetyNotes,
+        rdNotes: targets.rdNotes,
+      }),
+    });
 
-    const payload = {
-      user_id: patientId,
-      calories_min: targets.calories_min,
-      calories_max: targets.calories_max,
-      protein_min: targets.protein_min,
-      protein_max: targets.protein_max,
-      carbs_min: targets.carbs_min,
-      carbs_max: targets.carbs_max,
-      fat_min: targets.fat_min,
-      fat_max: targets.fat_max,
-      fiber_min: targets.fiber_min,
-      fiber_max: targets.fiber_max,
-      fluids_min: targets.fluids_min,
-      fluids_max: targets.fluids_max,
-      feeding_schedule: targets.feeding_schedule,
-      safety_notes: targets.safety_notes,
-      rd_notes: targets.rd_notes,
-      set_by: user?.id,
-      updated_at: new Date().toISOString(),
-    };
-
-    if (existingTargetId) {
-      await supabase
-        .from("nutrient_targets")
-        .update(payload)
-        .eq("id", existingTargetId);
-    } else {
-      const { data } = await supabase
-        .from("nutrient_targets")
-        .insert(payload)
-        .select("id")
-        .single();
-      if (data) setExistingTargetId(data.id);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.targets?.id) setExistingTargetId(data.targets.id);
     }
 
     setSaving(false);
@@ -239,7 +197,7 @@ export default function PatientDetailPage() {
     setTargets((prev) => ({
       ...prev,
       [field]:
-        field.includes("_min") || field.includes("_max")
+        field.includes("Min") || field.includes("Max")
           ? value === ""
             ? null
             : parseInt(value)
@@ -337,7 +295,7 @@ export default function PatientDetailPage() {
                   </span>
                   <span className="text-sm text-gray-600">
                     Submitted{" "}
-                    {new Date(assessment.created_at).toLocaleDateString()}
+                    {new Date(assessment.createdAt).toLocaleDateString()}
                   </span>
                 </div>
                 <div className="flex gap-2">
@@ -375,26 +333,26 @@ export default function PatientDetailPage() {
               <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
                 <Section title="Medical History">
                   <Field label="Diagnosis" value={assessment.diagnosis} />
-                  <Field label="Tube Type" value={assessment.tube_type} />
+                  <Field label="Tube Type" value={assessment.tubeType} />
                   <Field
                     label="Placement Date"
-                    value={assessment.tube_placement_date}
+                    value={assessment.tubePlacementDate}
                   />
                   <Field
                     label="Current Formula"
-                    value={assessment.current_formula}
+                    value={assessment.currentFormula}
                   />
                   <Field
                     label="Feeding Schedule"
-                    value={assessment.feeding_schedule}
+                    value={assessment.feedingSchedule}
                   />
-                  <Field label="Daily Volume" value={assessment.daily_volume} />
+                  <Field label="Daily Volume" value={assessment.dailyVolume} />
                 </Section>
 
                 <Section title="GI Symptoms">
-                  {assessment.gi_symptoms.length > 0 ? (
+                  {assessment.giSymptoms.length > 0 ? (
                     <div className="flex flex-wrap gap-2 mb-2">
-                      {assessment.gi_symptoms.map((s) => (
+                      {assessment.giSymptoms.map((s) => (
                         <span
                           key={s}
                           className="text-xs bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full"
@@ -406,9 +364,9 @@ export default function PatientDetailPage() {
                   ) : (
                     <p className="text-sm text-gray-400">None reported</p>
                   )}
-                  {assessment.gi_notes && (
+                  {assessment.giNotes && (
                     <p className="text-sm text-gray-600 mt-2">
-                      {assessment.gi_notes}
+                      {assessment.giNotes}
                     </p>
                   )}
                 </Section>
@@ -419,9 +377,9 @@ export default function PatientDetailPage() {
                 </Section>
 
                 <Section title="Dietary Preferences">
-                  {assessment.dietary_preferences.length > 0 ? (
+                  {assessment.dietaryPreferences.length > 0 ? (
                     <div className="flex flex-wrap gap-2 mb-2">
-                      {assessment.dietary_preferences.map((p) => (
+                      {assessment.dietaryPreferences.map((p) => (
                         <span
                           key={p}
                           className="text-xs bg-brand-100 text-brand-700 px-2.5 py-1 rounded-full"
@@ -433,9 +391,9 @@ export default function PatientDetailPage() {
                   ) : (
                     <p className="text-sm text-gray-400">None specified</p>
                   )}
-                  {assessment.dietary_notes && (
+                  {assessment.dietaryNotes && (
                     <p className="text-sm text-gray-600 mt-2">
-                      {assessment.dietary_notes}
+                      {assessment.dietaryNotes}
                     </p>
                   )}
                 </Section>
@@ -444,40 +402,40 @@ export default function PatientDetailPage() {
                   <Field
                     label="Blender"
                     value={
-                      assessment.has_blender
-                        ? assessment.blender_type || "Yes"
+                      assessment.hasBlender
+                        ? assessment.blenderType || "Yes"
                         : "No"
                     }
                   />
                   <Field
                     label="Food Storage"
-                    value={assessment.has_food_storage ? "Yes" : "No"}
+                    value={assessment.hasFoodStorage ? "Yes" : "No"}
                   />
                   <Field
                     label="Kitchen Scale"
-                    value={assessment.has_kitchen_scale ? "Yes" : "No"}
+                    value={assessment.hasKitchenScale ? "Yes" : "No"}
                   />
                 </Section>
 
                 <Section title="Goals & Payment">
-                  <Field label="Feeding Goal" value={assessment.feeding_goal} />
+                  <Field label="Feeding Goal" value={assessment.feedingGoal} />
                   <Field
                     label="Payment Method"
-                    value={assessment.payment_method}
+                    value={assessment.paymentMethod}
                   />
-                  {assessment.insurance_provider && (
+                  {assessment.insuranceProvider && (
                     <Field
                       label="Insurance"
-                      value={assessment.insurance_provider}
+                      value={assessment.insuranceProvider}
                     />
                   )}
-                  {assessment.additional_notes && (
+                  {assessment.additionalNotes && (
                     <div className="mt-2">
                       <p className="text-xs font-medium text-gray-500 mb-1">
                         Notes for RD
                       </p>
                       <p className="text-sm text-gray-700 bg-gray-50 rounded-lg p-3">
-                        {assessment.additional_notes}
+                        {assessment.additionalNotes}
                       </p>
                     </div>
                   )}
@@ -515,12 +473,12 @@ export default function PatientDetailPage() {
                       placeholder="Min"
                       value={
                         targets[
-                          `${n.prefix}_min` as keyof NutrientTargets
+                          `${n.prefix}Min` as keyof NutrientTargets
                         ] ?? ""
                       }
                       onChange={(e) =>
                         updateTarget(
-                          `${n.prefix}_min` as keyof NutrientTargets,
+                          `${n.prefix}Min` as keyof NutrientTargets,
                           e.target.value
                         )
                       }
@@ -532,12 +490,12 @@ export default function PatientDetailPage() {
                       placeholder="Max"
                       value={
                         targets[
-                          `${n.prefix}_max` as keyof NutrientTargets
+                          `${n.prefix}Max` as keyof NutrientTargets
                         ] ?? ""
                       }
                       onChange={(e) =>
                         updateTarget(
-                          `${n.prefix}_max` as keyof NutrientTargets,
+                          `${n.prefix}Max` as keyof NutrientTargets,
                           e.target.value
                         )
                       }
@@ -554,9 +512,9 @@ export default function PatientDetailPage() {
                   Feeding Schedule
                 </label>
                 <textarea
-                  value={targets.feeding_schedule || ""}
+                  value={targets.feedingSchedule || ""}
                   onChange={(e) =>
-                    updateTarget("feeding_schedule", e.target.value)
+                    updateTarget("feedingSchedule", e.target.value)
                   }
                   rows={3}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-accent-500 focus:border-accent-500 outline-none"
@@ -569,9 +527,9 @@ export default function PatientDetailPage() {
                   Safety Notes
                 </label>
                 <textarea
-                  value={targets.safety_notes || ""}
+                  value={targets.safetyNotes || ""}
                   onChange={(e) =>
-                    updateTarget("safety_notes", e.target.value)
+                    updateTarget("safetyNotes", e.target.value)
                   }
                   rows={3}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-accent-500 focus:border-accent-500 outline-none"
@@ -584,8 +542,8 @@ export default function PatientDetailPage() {
                   RD Notes (visible to patient)
                 </label>
                 <textarea
-                  value={targets.rd_notes || ""}
-                  onChange={(e) => updateTarget("rd_notes", e.target.value)}
+                  value={targets.rdNotes || ""}
+                  onChange={(e) => updateTarget("rdNotes", e.target.value)}
                   rows={2}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-accent-500 focus:border-accent-500 outline-none"
                   placeholder="Optional note shown to the patient on their nutrients page..."
@@ -647,12 +605,12 @@ export default function PatientDetailPage() {
                       </span>
                       <span
                         className={`text-xs px-2 py-0.5 rounded-full ${
-                          log.intake_completed
+                          log.intakeCompleted
                             ? "bg-green-100 text-green-700"
                             : "bg-red-100 text-red-700"
                         }`}
                       >
-                        {log.intake_completed
+                        {log.intakeCompleted
                           ? "Intake completed"
                           : "Incomplete intake"}
                       </span>

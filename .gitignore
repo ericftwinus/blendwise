@@ -36,3 +36,33 @@ next-env.d.ts
 
 # claude
 .claude/
+
+# GCP credentials & migration notes
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!firebase.json
+!functions/package.json
+!functions/package-lock.json
+gcp_migration.txt
+hippa_stuff.txt
+doctor_referral.txt
+referral_form.txt
+*.jpg
+
+# GCP local tools & binaries
+google-cloud-sdk/
+GoogleCloudSDKInstaller.exe
+cloud-sql-proxy.exe
+gcloud-cli.zip
+gcloud.sh
+
+# Old env files
+.env.old
+.env.oldlocal
+
+# Functions secrets
+functions/.env
+
+/src/generated/prisma

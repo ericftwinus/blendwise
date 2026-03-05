@@ -15,7 +15,7 @@ import {
   X,
   ChevronRight,
 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/lib/firebase/auth-context";
 
 const navItems = [
   { href: "/rd", icon: LayoutDashboard, label: "Dashboard" },
@@ -30,9 +30,10 @@ export default function RDLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const { signOut } = useAuth();
+
   async function handleSignOut() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
+    await signOut();
     router.push("/");
     router.refresh();
   }

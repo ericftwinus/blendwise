@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { Settings, Save, CheckCircle2 } from "lucide-react";
 
 const specializations = [
@@ -29,27 +28,20 @@ export default function RDSettingsPage() {
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
+      const res = await fetch("/api/rd/settings");
+      if (!res.ok) return;
 
-      setFullName(user.user_metadata?.full_name || "");
-      setEmail(user.email || "");
+      const { profile, rdProfile, email: userEmail } = await res.json();
 
-      const { data: rdProfile } = await supabase
-        .from("rd_profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
+      setFullName(profile?.fullName || "");
+      setEmail(userEmail || "");
 
       if (rdProfile) {
-        setLicenseNumber(rdProfile.license_number || "");
-        setLicenseState(rdProfile.license_state || "");
+        setLicenseNumber(rdProfile.licenseNumber || "");
+        setLicenseState(rdProfile.licenseState || "");
         setSelectedSpecs(rdProfile.specializations || []);
         setBio(rdProfile.bio || "");
-        setAcceptingPatients(rdProfile.accepting_patients ?? true);
+        setAcceptingPatients(rdProfile.acceptingPatients ?? true);
       }
 
       setLoading(false);
@@ -67,32 +59,17 @@ export default function RDSettingsPage() {
     setSaving(true);
     setSaved(false);
 
-    const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return;
-
-    // Update profile name
-    await supabase
-      .from("profiles")
-      .update({ full_name: fullName, updated_at: new Date().toISOString() })
-      .eq("id", user.id);
-
-    // Update user metadata
-    await supabase.auth.updateUser({
-      data: { full_name: fullName },
-    });
-
-    // Upsert RD profile
-    await supabase.from("rd_profiles").upsert({
-      id: user.id,
-      license_number: licenseNumber,
-      license_state: licenseState,
-      specializations: selectedSpecs,
-      bio,
-      accepting_patients: acceptingPatients,
-      updated_at: new Date().toISOString(),
+    await fetch("/api/rd/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fullName,
+        licenseNumber,
+        licenseState,
+        specializations: selectedSpecs,
+        bio,
+        acceptingPatients,
+      }),
     });
 
     setSaving(false);

@@ -1,22 +1,13 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getServerUser } from "@/lib/firebase/server-auth";
+import { prisma } from "@/lib/db/prisma";
 
 export async function POST(request: Request) {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const user = await getServerUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();
-  const {
-    nutrientTargets,
-    allergies,
-    intolerances,
-    dietaryPreferences,
-    giSymptoms,
-  } = body;
+  const { nutrientTargets, allergies, intolerances, dietaryPreferences, giSymptoms } = body;
 
   const prompt = `You are a Registered Dietitian creating a weekly grocery list for a patient who uses blenderized tube feedings (BTF).
 
@@ -81,14 +72,13 @@ Return ONLY the JSON array, no other text.`;
       return NextResponse.json({ error: "Failed to parse grocery list" }, { status: 500 });
     }
 
-    // Save to Supabase
+    // Save to database
     const weekStart = new Date();
-    weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Start of week (Sunday)
-    await supabase.from("grocery_lists").upsert({
-      user_id: user.id,
-      week_start: weekStart.toISOString().split("T")[0],
-      items: JSON.stringify(items),
-      updated_at: new Date().toISOString(),
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    await prisma.groceryList.upsert({
+      where: { userId_weekStart: { userId: user.uid, weekStart: weekStart.toISOString().split("T")[0] } },
+      create: { userId: user.uid, weekStart: weekStart.toISOString().split("T")[0], items: JSON.stringify(items) },
+      update: { items: JSON.stringify(items) },
     });
 
     return NextResponse.json({ items });

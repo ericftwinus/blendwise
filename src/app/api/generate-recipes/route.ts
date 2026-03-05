@@ -1,13 +1,9 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getServerUser } from "@/lib/firebase/server-auth";
 
 export async function POST(request: Request) {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const user = await getServerUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();
   const {
@@ -82,7 +78,6 @@ Return ONLY the JSON array, no other text.`;
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || "[]";
 
-    // Parse the JSON from the response (handle markdown code blocks)
     let recipes;
     try {
       const cleaned = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();

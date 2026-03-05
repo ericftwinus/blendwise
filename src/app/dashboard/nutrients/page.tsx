@@ -1,25 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { Activity, Info, AlertCircle, CheckCircle2 } from "lucide-react";
 
 interface NutrientTarget {
-  calories_min: number | null;
-  calories_max: number | null;
-  protein_min: number | null;
-  protein_max: number | null;
-  carbs_min: number | null;
-  carbs_max: number | null;
-  fat_min: number | null;
-  fat_max: number | null;
-  fiber_min: number | null;
-  fiber_max: number | null;
-  fluids_min: number | null;
-  fluids_max: number | null;
-  feeding_schedule: string | null;
-  safety_notes: string | null;
-  rd_notes: string | null;
+  caloriesMin: number | null;
+  caloriesMax: number | null;
+  proteinMin: number | null;
+  proteinMax: number | null;
+  carbsMin: number | null;
+  carbsMax: number | null;
+  fatMin: number | null;
+  fatMax: number | null;
+  fiberMin: number | null;
+  fiberMax: number | null;
+  fluidsMin: number | null;
+  fluidsMax: number | null;
+  feedingSchedule: string | null;
+  safetyNotes: string | null;
+  rdNotes: string | null;
 }
 
 const defaultTargets = [
@@ -37,19 +36,11 @@ export default function NutrientsPage() {
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data } = await supabase
-        .from("nutrient_targets")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
-
-      if (data) setTargets(data);
+      const res = await fetch("/api/dashboard/nutrients");
+      if (res.ok) {
+        const { targets: data } = await res.json();
+        if (data) setTargets(data);
+      }
       setLoading(false);
     }
     load();
@@ -59,12 +50,12 @@ export default function NutrientsPage() {
 
   const displayTargets = hasRealTargets
     ? [
-        { nutrient: "Calories", min: targets.calories_min, max: targets.calories_max, unit: "kcal/day", color: "bg-orange-100 text-orange-700" },
-        { nutrient: "Protein", min: targets.protein_min, max: targets.protein_max, unit: "g/day", color: "bg-red-100 text-red-700" },
-        { nutrient: "Carbohydrates", min: targets.carbs_min, max: targets.carbs_max, unit: "g/day", color: "bg-yellow-100 text-yellow-700" },
-        { nutrient: "Fat", min: targets.fat_min, max: targets.fat_max, unit: "g/day", color: "bg-purple-100 text-purple-700" },
-        { nutrient: "Fiber", min: targets.fiber_min, max: targets.fiber_max, unit: "g/day", color: "bg-green-100 text-green-700" },
-        { nutrient: "Fluids", min: targets.fluids_min, max: targets.fluids_max, unit: "mL/day", color: "bg-blue-100 text-blue-700" },
+        { nutrient: "Calories", min: targets.caloriesMin, max: targets.caloriesMax, unit: "kcal/day", color: "bg-orange-100 text-orange-700" },
+        { nutrient: "Protein", min: targets.proteinMin, max: targets.proteinMax, unit: "g/day", color: "bg-red-100 text-red-700" },
+        { nutrient: "Carbohydrates", min: targets.carbsMin, max: targets.carbsMax, unit: "g/day", color: "bg-yellow-100 text-yellow-700" },
+        { nutrient: "Fat", min: targets.fatMin, max: targets.fatMax, unit: "g/day", color: "bg-purple-100 text-purple-700" },
+        { nutrient: "Fiber", min: targets.fiberMin, max: targets.fiberMax, unit: "g/day", color: "bg-green-100 text-green-700" },
+        { nutrient: "Fluids", min: targets.fluidsMin, max: targets.fluidsMax, unit: "mL/day", color: "bg-blue-100 text-blue-700" },
       ]
     : defaultTargets;
 
@@ -91,7 +82,7 @@ export default function NutrientsPage() {
                 <p className="text-sm text-green-800 font-medium">RD-Approved Targets</p>
                 <p className="text-sm text-green-700">
                   These nutrient targets were set by your Registered Dietitian based on your assessment.
-                  {targets.rd_notes && ` RD notes: ${targets.rd_notes}`}
+                  {targets.rdNotes && ` RD notes: ${targets.rdNotes}`}
                 </p>
               </div>
             </div>
@@ -118,7 +109,7 @@ export default function NutrientsPage() {
                     ? `${item.min.toLocaleString()} - ${item.max.toLocaleString()}`
                     : item.min != null
                     ? `${item.min.toLocaleString()}+`
-                    : "—"}
+                    : "\u2014"}
                 </p>
                 <p className="text-sm text-gray-500">{item.unit}</p>
               </div>
@@ -131,8 +122,8 @@ export default function NutrientsPage() {
               Feeding Schedule
             </h2>
             <div className="bg-gray-50 rounded-lg p-4">
-              {hasRealTargets && targets.feeding_schedule ? (
-                <p className="text-sm text-gray-700 whitespace-pre-line">{targets.feeding_schedule}</p>
+              {hasRealTargets && targets.feedingSchedule ? (
+                <p className="text-sm text-gray-700 whitespace-pre-line">{targets.feedingSchedule}</p>
               ) : (
                 <>
                   <p className="text-sm text-gray-600">
@@ -160,8 +151,8 @@ export default function NutrientsPage() {
 
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-2">Safety Notes</h2>
-            {hasRealTargets && targets.safety_notes ? (
-              <p className="text-sm text-gray-600 whitespace-pre-line">{targets.safety_notes}</p>
+            {hasRealTargets && targets.safetyNotes ? (
+              <p className="text-sm text-gray-600 whitespace-pre-line">{targets.safetyNotes}</p>
             ) : (
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-start gap-2">

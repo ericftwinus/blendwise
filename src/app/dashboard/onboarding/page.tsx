@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import {
   Shield,
   ChevronRight,
@@ -14,6 +13,9 @@ import {
   CookingPot,
   CreditCard,
   Bot,
+  Search,
+  Loader2,
+  ChevronDown,
 } from "lucide-react";
 
 const CONSENT_TYPES = [
@@ -41,6 +43,37 @@ interface DoctorInfo {
   doctorEmail: string;
   doctorPractice: string;
   doctorNpi: string;
+  doctorCredential: string;
+  doctorTaxonomy: string;
+  doctorAddressLine1: string;
+  doctorAddressCity: string;
+  doctorAddressState: string;
+  doctorAddressZip: string;
+}
+
+interface NpiResult {
+  npi: string;
+  firstName: string;
+  lastName: string;
+  credential: string;
+  taxonomy: string;
+  practiceName: string;
+  phone: string;
+  fax: string;
+  address: {
+    line1: string;
+    city: string;
+    state: string;
+    zip: string;
+  };
+}
+
+interface PatientContact {
+  phone: string;
+  addressLine1: string;
+  addressCity: string;
+  addressState: string;
+  addressZip: string;
 }
 
 export default function OnboardingPage() {
@@ -72,69 +105,158 @@ export default function OnboardingPage() {
     doctorEmail: "",
     doctorPractice: "",
     doctorNpi: "",
+    doctorCredential: "",
+    doctorTaxonomy: "",
+    doctorAddressLine1: "",
+    doctorAddressCity: "",
+    doctorAddressState: "",
+    doctorAddressZip: "",
   });
+
+  // NPI search state
+  const [npiQuery, setNpiQuery] = useState("");
+  const [npiResults, setNpiResults] = useState<NpiResult[]>([]);
+  const [npiSearching, setNpiSearching] = useState(false);
+  const [npiDropdownOpen, setNpiDropdownOpen] = useState(false);
+  const [npiSelected, setNpiSelected] = useState(false);
+  const [manualEntry, setManualEntry] = useState(false);
+  const npiDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Patient contact info (for referral form PDF)
+  const [patientContact, setPatientContact] = useState<PatientContact>({
+    phone: "",
+    addressLine1: "",
+    addressCity: "",
+    addressState: "",
+    addressZip: "",
+  });
+
+  // NPI search with debounce
+  const searchNpi = useCallback(async (query: string) => {
+    if (query.length < 2) {
+      setNpiResults([]);
+      setNpiDropdownOpen(false);
+      return;
+    }
+    setNpiSearching(true);
+    try {
+      const npiParams = new URLSearchParams({ name: query, limit: "8" });
+      if (patientContact.addressState) npiParams.set("state", patientContact.addressState);
+      if (patientContact.addressCity) npiParams.set("city", patientContact.addressCity);
+      const res = await fetch(`/api/npi-lookup?${npiParams.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        setNpiResults(data.results || []);
+        setNpiDropdownOpen(true);
+      }
+    } catch {
+      // silently fail
+    }
+    setNpiSearching(false);
+  }, [patientContact.addressState, patientContact.addressCity]);
+
+  function handleNpiQueryChange(value: string) {
+    setNpiQuery(value);
+    setNpiSelected(false);
+    if (npiDebounceRef.current) clearTimeout(npiDebounceRef.current);
+    npiDebounceRef.current = setTimeout(() => searchNpi(value), 400);
+  }
+
+  function selectNpiResult(result: NpiResult) {
+    const fullName = `${result.firstName} ${result.lastName}`.trim();
+    setDoctor({
+      doctorName: fullName,
+      doctorFax: result.fax,
+      doctorPhone: result.phone,
+      doctorEmail: "",
+      doctorPractice: result.practiceName,
+      doctorNpi: result.npi,
+      doctorCredential: result.credential,
+      doctorTaxonomy: result.taxonomy,
+      doctorAddressLine1: result.address.line1,
+      doctorAddressCity: result.address.city,
+      doctorAddressState: result.address.state,
+      doctorAddressZip: result.address.zip,
+    });
+    setNpiQuery(`${fullName}${result.credential ? `, ${result.credential}` : ""}`);
+    setNpiSelected(true);
+    setNpiDropdownOpen(false);
+    setManualEntry(false);
+  }
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setNpiDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     async function checkOnboarding() {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
+      const res = await fetch("/api/dashboard/onboarding");
+      if (!res.ok) {
         router.push("/login");
         return;
       }
 
-      setPatientName(user.user_metadata?.full_name || "");
+      const { consents: existingConsents, profile, referral } = await res.json();
 
-      // Check if already completed
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("onboarding_completed")
-        .eq("id", user.id)
-        .single();
+      setPatientName(profile?.fullName || "");
 
-      if (profile?.onboarding_completed) {
+      if (profile?.onboardingCompleted) {
         setCompleted(true);
       }
 
-      // Load any existing consents
-      const { data: existingConsents } = await supabase
-        .from("patient_consents")
-        .select("consent_type, consented, initials")
-        .eq("user_id", user.id);
-
       if (existingConsents && existingConsents.length > 0) {
         const updated = { ...consents };
-        existingConsents.forEach((c) => {
-          if (c.consent_type in updated) {
-            updated[c.consent_type as ConsentType] = c.consented;
+        existingConsents.forEach((c: { consentType: string; consented: boolean; initials: string | null }) => {
+          if (c.consentType in updated) {
+            updated[c.consentType as ConsentType] = c.consented;
           }
-          if (c.consent_type === "btf_risk_waiver" && c.initials) {
+          if (c.consentType === "btf_risk_waiver" && c.initials) {
             setRiskInitials(c.initials);
           }
         });
         setConsents(updated);
       }
 
-      // Load existing doctor info
-      const { data: existingReferral } = await supabase
-        .from("doctor_referrals")
-        .select("*")
-        .eq("patient_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
-
-      if (existingReferral) {
+      if (referral) {
         setDoctor({
-          doctorName: existingReferral.doctor_name || "",
-          doctorFax: existingReferral.doctor_fax || "",
-          doctorPhone: existingReferral.doctor_phone || "",
-          doctorEmail: existingReferral.doctor_email || "",
-          doctorPractice: existingReferral.doctor_practice || "",
-          doctorNpi: existingReferral.doctor_npi || "",
+          doctorName: referral.doctorName || "",
+          doctorFax: referral.doctorFax || "",
+          doctorPhone: referral.doctorPhone || "",
+          doctorEmail: referral.doctorEmail || "",
+          doctorPractice: referral.doctorPractice || "",
+          doctorNpi: referral.doctorNpi || "",
+          doctorCredential: referral.doctorCredential || "",
+          doctorTaxonomy: referral.doctorTaxonomy || "",
+          doctorAddressLine1: referral.doctorAddressLine1 || "",
+          doctorAddressCity: referral.doctorAddressCity || "",
+          doctorAddressState: referral.doctorAddressState || "",
+          doctorAddressZip: referral.doctorAddressZip || "",
         });
+        if (referral.doctorName) {
+          setNpiQuery(referral.doctorName + (referral.doctorCredential ? `, ${referral.doctorCredential}` : ""));
+          setNpiSelected(true);
+        }
+      }
+
+      if (profile) {
+        setPatientContact({
+          phone: profile.phone || "",
+          addressLine1: profile.addressLine1 || "",
+          addressCity: profile.addressCity || "",
+          addressState: profile.addressState || "",
+          addressZip: profile.addressZip || "",
+        });
+        if (profile.dateOfBirth) {
+          setPatientDob(profile.dateOfBirth);
+        }
       }
 
       setLoading(false);
@@ -149,67 +271,80 @@ export default function OnboardingPage() {
 
   async function handleSubmit() {
     setSaving(true);
-    const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      setSaving(false);
-      return;
-    }
 
     // Save all consents
     for (const consentType of CONSENT_TYPES) {
-      await supabase.from("patient_consents").upsert(
-        {
-          user_id: user.id,
-          consent_type: consentType,
+      await fetch("/api/dashboard/onboarding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "consent",
+          consentType,
           consented: consents[consentType],
           initials: consentType === "btf_risk_waiver" ? riskInitials : null,
-          signed_at: new Date().toISOString(),
-          consent_version: "1.0",
-        },
-        { onConflict: "user_id,consent_type" }
-      );
+        }),
+      });
     }
 
     // Save doctor referral if provided
     if (doctor.doctorName.trim()) {
       // Fetch patient assessment data for the referral snapshot
-      const { data: assessment } = await supabase
-        .from("assessments")
-        .select("diagnosis, tube_type")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
+      let assessment: Record<string, unknown> | null = null;
+      const assessRes = await fetch("/api/dashboard/assessment");
+      if (assessRes.ok) {
+        const data = await assessRes.json();
+        assessment = data.assessment;
+      }
 
-      await supabase.from("doctor_referrals").upsert(
-        {
-          patient_id: user.id,
-          doctor_name: doctor.doctorName,
-          doctor_fax: doctor.doctorFax || null,
-          doctor_phone: doctor.doctorPhone || null,
-          doctor_email: doctor.doctorEmail || null,
-          doctor_practice: doctor.doctorPractice || null,
-          doctor_npi: doctor.doctorNpi || null,
-          patient_diagnosis: assessment?.diagnosis || null,
-          patient_dob: patientDob || null,
-          patient_tube_type: assessment?.tube_type || null,
-          clinical_goal:
+      const referralRes = await fetch("/api/rd/referrals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          doctorName: doctor.doctorName,
+          doctorFax: doctor.doctorFax || null,
+          doctorPhone: doctor.doctorPhone || null,
+          doctorEmail: doctor.doctorEmail || null,
+          doctorPractice: doctor.doctorPractice || null,
+          doctorNpi: doctor.doctorNpi || null,
+          doctorCredential: doctor.doctorCredential || null,
+          doctorTaxonomy: doctor.doctorTaxonomy || null,
+          doctorAddressLine1: doctor.doctorAddressLine1 || null,
+          doctorAddressCity: doctor.doctorAddressCity || null,
+          doctorAddressState: doctor.doctorAddressState || null,
+          doctorAddressZip: doctor.doctorAddressZip || null,
+          patientDiagnosis: (assessment?.diagnosis as string) || null,
+          patientDob: patientDob || null,
+          patientTubeType: (assessment?.tubeType as string) || null,
+          currentFormula: (assessment?.currentFormula as string) || null,
+          dailyVolume: (assessment?.dailyVolume as string) || null,
+          giSymptoms: (assessment?.giSymptoms as string[]) || [],
+          insurance: (assessment?.insuranceProvider as string) || null,
+          clinicalGoal:
             "Transition from commercial formula to real-food blenderized diet",
-          referral_status: "pending",
-        },
-        { onConflict: "patient_id" }
-      );
+          referralStatus: "pending",
+        }),
+      });
+      if (!referralRes.ok) {
+        const err = await referralRes.json();
+        console.error("Referral save failed:", err);
+      }
     }
 
-    // Mark onboarding complete
-    await supabase
-      .from("profiles")
-      .update({ onboarding_completed: true })
-      .eq("id", user.id);
+    // Save patient contact info and mark onboarding complete
+    await fetch("/api/dashboard/onboarding", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "profile",
+        onboardingCompleted: true,
+        phone: patientContact.phone || null,
+        addressLine1: patientContact.addressLine1 || null,
+        addressCity: patientContact.addressCity || null,
+        addressState: patientContact.addressState || null,
+        addressZip: patientContact.addressZip || null,
+        dateOfBirth: patientDob || null,
+      }),
+    });
 
     setSaving(false);
     setCompleted(true);
@@ -451,115 +586,281 @@ export default function OnboardingPage() {
             </h3>
             <p className="text-sm text-blue-800">
               A physician referral authorizes your Registered Dietitian to
-              provide Medical Nutrition Therapy (MNT) and ensures your medical
-              team is informed of your transition to a blenderized tube feeding
-              diet. We will send your doctor a pre-filled &quot;30-Second&quot;
-              referral form that requires only a single signature — no
-              additional paperwork.
+              provide Medical Nutrition Therapy (MNT). Just type your
+              doctor&apos;s last name below — we&apos;ll fill in the rest
+              automatically.
             </p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Your Date of Birth <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="date"
-              value={patientDob}
-              onChange={(e) => setPatientDob(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
-            />
-            <p className="text-xs text-gray-400 mt-1">
-              Required for the referral form header
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Physician / Primary Care Provider Name{" "}
-              <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={doctor.doctorName}
-              onChange={(e) => updateDoctor("doctorName", e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
-              placeholder="e.g., Dr. Sarah Johnson"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Practice / Clinic Name
-            </label>
-            <input
-              type="text"
-              value={doctor.doctorPractice}
-              onChange={(e) => updateDoctor("doctorPractice", e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
-              placeholder="e.g., Valley Medical Center"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Doctor&apos;s Fax Number
-              </label>
-              <input
-                type="tel"
-                value={doctor.doctorFax}
-                onChange={(e) => updateDoctor("doctorFax", e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
-                placeholder="(555) 123-4567"
-              />
-              <p className="text-xs text-gray-400 mt-1">
-                Preferred for HIPAA-compliant referral delivery
-              </p>
+          {/* Patient Info Section */}
+          <div className="space-y-4">
+            <p className="text-sm font-medium text-gray-800">Your Information</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Date of Birth <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={patientDob}
+                  onChange={(e) => setPatientDob(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  value={patientContact.phone}
+                  onChange={(e) => setPatientContact(prev => ({ ...prev, phone: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
+                  placeholder="(555) 123-4567"
+                />
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Doctor&apos;s Phone Number
-              </label>
-              <input
-                type="tel"
-                value={doctor.doctorPhone}
-                onChange={(e) => updateDoctor("doctorPhone", e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
-                placeholder="(555) 987-6543"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Doctor&apos;s Email
-              </label>
-              <input
-                type="email"
-                value={doctor.doctorEmail}
-                onChange={(e) => updateDoctor("doctorEmail", e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
-                placeholder="dr.johnson@clinic.com"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Doctor&apos;s NPI Number
+                Street Address
               </label>
               <input
                 type="text"
-                value={doctor.doctorNpi}
-                onChange={(e) => updateDoctor("doctorNpi", e.target.value)}
+                value={patientContact.addressLine1}
+                onChange={(e) => setPatientContact(prev => ({ ...prev, addressLine1: e.target.value }))}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
-                placeholder="10-digit NPI (optional)"
-                maxLength={10}
+                placeholder="123 Main St"
               />
-              <p className="text-xs text-gray-400 mt-1">
-                Helps us verify and route the referral quickly
-              </p>
             </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  City
+                </label>
+                <input
+                  type="text"
+                  value={patientContact.addressCity}
+                  onChange={(e) => setPatientContact(prev => ({ ...prev, addressCity: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
+                  placeholder="Sacramento"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  State
+                </label>
+                <input
+                  type="text"
+                  value={patientContact.addressState}
+                  onChange={(e) => setPatientContact(prev => ({ ...prev, addressState: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
+                  placeholder="CA"
+                  maxLength={2}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  ZIP Code
+                </label>
+                <input
+                  type="text"
+                  value={patientContact.addressZip}
+                  onChange={(e) => setPatientContact(prev => ({ ...prev, addressZip: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
+                  placeholder="95814"
+                  maxLength={10}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Doctor NPI Search */}
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-gray-800">
+              Find Your Doctor <span className="text-red-500">*</span>
+            </p>
+            <div className="relative" ref={dropdownRef}>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={npiQuery}
+                  onChange={(e) => handleNpiQueryChange(e.target.value)}
+                  onFocus={() => { if (npiResults.length > 0 && !npiSelected) setNpiDropdownOpen(true); }}
+                  className="w-full border border-gray-300 rounded-lg pl-10 pr-10 py-2.5 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
+                  placeholder="Type your doctor's last name..."
+                />
+                {npiSearching && (
+                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 animate-spin" />
+                )}
+              </div>
+
+              {/* NPI Results Dropdown */}
+              {npiDropdownOpen && npiResults.length > 0 && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                  {npiResults.map((result) => (
+                    <button
+                      key={result.npi}
+                      type="button"
+                      onClick={() => selectNpiResult(result)}
+                      className="w-full text-left px-4 py-3 hover:bg-blue-50 border-b border-gray-100 last:border-0 transition"
+                    >
+                      <p className="font-medium text-gray-900 text-sm">
+                        {result.firstName} {result.lastName}
+                        {result.credential && <span className="text-gray-500">, {result.credential}</span>}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {result.taxonomy}
+                        {result.practiceName && result.practiceName !== result.taxonomy && ` — ${result.practiceName}`}
+                        {result.address.city && `, ${result.address.city} ${result.address.state}`}
+                      </p>
+                      {result.fax && (
+                        <p className="text-xs text-green-600 mt-0.5">
+                          Fax: {result.fax}
+                        </p>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {npiDropdownOpen && npiResults.length === 0 && !npiSearching && npiQuery.length >= 2 && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-4 text-center">
+                  <p className="text-sm text-gray-500">No results found for &quot;{npiQuery}&quot;</p>
+                  <button
+                    type="button"
+                    onClick={() => { setManualEntry(true); setNpiDropdownOpen(false); }}
+                    className="text-sm text-accent-600 hover:text-accent-700 font-medium mt-1"
+                  >
+                    Enter doctor info manually
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Selected doctor summary */}
+            {npiSelected && doctor.doctorName && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-start justify-between">
+                <div>
+                  <p className="text-sm font-medium text-green-900">
+                    <CheckCircle2 className="w-4 h-4 inline mr-1.5 -mt-0.5" />
+                    {doctor.doctorName}{doctor.doctorCredential && `, ${doctor.doctorCredential}`}
+                  </p>
+                  <p className="text-xs text-green-700 mt-0.5">
+                    {doctor.doctorTaxonomy}
+                    {doctor.doctorPractice && doctor.doctorPractice !== doctor.doctorTaxonomy && ` — ${doctor.doctorPractice}`}
+                  </p>
+                  <p className="text-xs text-green-700">
+                    NPI: {doctor.doctorNpi}
+                    {doctor.doctorFax && ` | Fax: ${doctor.doctorFax}`}
+                    {doctor.doctorPhone && ` | Phone: ${doctor.doctorPhone}`}
+                  </p>
+                  {doctor.doctorAddressLine1 && (
+                    <p className="text-xs text-green-700">
+                      {doctor.doctorAddressLine1}, {doctor.doctorAddressCity} {doctor.doctorAddressState} {doctor.doctorAddressZip}
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNpiSelected(false);
+                    setNpiQuery("");
+                    setDoctor({
+                      doctorName: "", doctorFax: "", doctorPhone: "", doctorEmail: "",
+                      doctorPractice: "", doctorNpi: "", doctorCredential: "", doctorTaxonomy: "",
+                      doctorAddressLine1: "", doctorAddressCity: "", doctorAddressState: "", doctorAddressZip: "",
+                    });
+                  }}
+                  className="text-xs text-green-600 hover:text-green-700 font-medium whitespace-nowrap"
+                >
+                  Change
+                </button>
+              </div>
+            )}
+
+            {/* Manual entry fallback */}
+            {!npiSelected && (
+              <button
+                type="button"
+                onClick={() => setManualEntry(!manualEntry)}
+                className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 transition"
+              >
+                <ChevronDown className={`w-4 h-4 transition-transform ${manualEntry ? "rotate-180" : ""}`} />
+                Can&apos;t find your doctor?
+              </button>
+            )}
+
+            {manualEntry && !npiSelected && (
+              <div className="space-y-4 border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <p className="text-xs text-gray-500">Enter your doctor&apos;s information manually:</p>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Doctor&apos;s Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={doctor.doctorName}
+                    onChange={(e) => updateDoctor("doctorName", e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none bg-white"
+                    placeholder="e.g., Sarah Johnson"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Practice / Clinic Name
+                    </label>
+                    <input
+                      type="text"
+                      value={doctor.doctorPractice}
+                      onChange={(e) => updateDoctor("doctorPractice", e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none bg-white"
+                      placeholder="e.g., Valley Medical Center"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Fax Number
+                    </label>
+                    <input
+                      type="tel"
+                      value={doctor.doctorFax}
+                      onChange={(e) => updateDoctor("doctorFax", e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none bg-white"
+                      placeholder="(555) 123-4567"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Phone Number
+                    </label>
+                    <input
+                      type="tel"
+                      value={doctor.doctorPhone}
+                      onChange={(e) => updateDoctor("doctorPhone", e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none bg-white"
+                      placeholder="(555) 987-6543"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      NPI Number
+                    </label>
+                    <input
+                      type="text"
+                      value={doctor.doctorNpi}
+                      onChange={(e) => updateDoctor("doctorNpi", e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none bg-white"
+                      placeholder="10-digit NPI (optional)"
+                      maxLength={10}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-600">

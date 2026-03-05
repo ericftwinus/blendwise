@@ -4,7 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Leaf, Mail, Lock, User, ArrowRight, Shield } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { auth } from "@/lib/firebase/client";
 
 export default function RDSignupPage() {
   const router = useRouter();
@@ -15,59 +16,58 @@ export default function RDSignupPage() {
   const [licenseState, setLicenseState] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    const supabase = createClient();
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-          role: "rd",
-          license_number: licenseNumber,
-          license_state: licenseState,
-        },
-      },
-    });
+    try {
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(result.user, { displayName: fullName });
 
-    if (error) {
-      setError(error.message);
-      setLoading(false);
-    } else {
-      setSuccess(true);
+      // Create session cookie
+      const idToken = await result.user.getIdToken();
+      await fetch("/api/auth/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+      });
+
+      // Set RD role custom claim
+      await fetch("/api/auth/set-rd-role", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid: result.user.uid }),
+      });
+
+      // Trigger user-created webhook as fallback (session cookie authenticates)
+      await fetch("/api/webhooks/user-created", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid: result.user.uid,
+          email: result.user.email,
+          displayName: fullName,
+          role: "rd",
+        }),
+      });
+
+      // Force token refresh to pick up new claims, then re-create session
+      await result.user.getIdToken(true);
+      const freshToken = await result.user.getIdToken();
+      await fetch("/api/auth/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken: freshToken }),
+      });
+
+      router.push("/rd");
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message || "Signup failed");
       setLoading(false);
     }
-  }
-
-  if (success) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-8">
-        <div className="text-center max-w-md">
-          <div className="w-16 h-16 bg-accent-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Mail className="w-8 h-8 text-accent-600" />
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            Check your email
-          </h2>
-          <p className="text-gray-600 mb-6">
-            We sent a confirmation link to <strong>{email}</strong>. Click the
-            link to activate your RD account and start managing patients.
-          </p>
-          <Link
-            href="/login"
-            className="text-accent-600 font-semibold hover:underline"
-          >
-            Back to Sign In
-          </Link>
-        </div>
-      </div>
-    );
   }
 
   return (
