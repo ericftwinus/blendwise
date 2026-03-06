@@ -2,5 +2,18 @@
   "functions": {
     "source": "functions",
     "runtime": "nodejs20"
+  },
+  "hosting": {
+    "public": "public",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [
+      {
+        "source": "**",
+        "run": {
+          "serviceId": "blendwise",
+          "region": "us-central1"
+        }
+      }
+    ]
   }
 }

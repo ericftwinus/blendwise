@@ -272,19 +272,22 @@ export default function OnboardingPage() {
   async function handleSubmit() {
     setSaving(true);
 
-    // Save all consents
-    for (const consentType of CONSENT_TYPES) {
-      await fetch("/api/dashboard/onboarding", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "consent",
-          consentType,
-          consented: consents[consentType],
-          initials: consentType === "btf_risk_waiver" ? riskInitials : null,
-        }),
-      });
-    }
+    try {
+    // Save all consents in parallel
+    await Promise.all(
+      CONSENT_TYPES.map((consentType) =>
+        fetch("/api/dashboard/onboarding", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "consent",
+            consentType,
+            consented: consents[consentType],
+            initials: consentType === "btf_risk_waiver" ? riskInitials : null,
+          }),
+        })
+      )
+    );
 
     // Save doctor referral if provided
     if (doctor.doctorName.trim()) {
@@ -346,8 +349,12 @@ export default function OnboardingPage() {
       }),
     });
 
-    setSaving(false);
     setCompleted(true);
+    } catch (err) {
+      console.error("Onboarding save error:", err);
+    } finally {
+      setSaving(false);
+    }
   }
 
   // Determine if current step allows proceeding

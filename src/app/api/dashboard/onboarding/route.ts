@@ -56,6 +56,23 @@ export async function POST(request: NextRequest) {
         onboardingCompleted: body.onboardingCompleted,
       },
     });
+
+    // Auto-assign patient to all active RDs when onboarding completes
+    if (body.onboardingCompleted) {
+      const rdProfiles = await prisma.rdProfile.findMany({
+        select: { userId: true },
+      });
+      await Promise.all(
+        rdProfiles.map((rd) =>
+          prisma.rdPatientAssignment.upsert({
+            where: { rdId_patientId: { rdId: rd.userId, patientId: user.uid } },
+            create: { rdId: rd.userId, patientId: user.uid },
+            update: {},
+          })
+        )
+      );
+    }
+
     return NextResponse.json({ profile });
   }
 

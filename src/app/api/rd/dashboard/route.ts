@@ -29,8 +29,13 @@ export async function GET() {
     });
   }
 
+  const rdProfileData = await prisma.profile.findUnique({
+    where: { userId: user.uid },
+    select: { fullName: true },
+  });
+
   return NextResponse.json({
-    rdName: user.email,
+    rdName: rdProfileData?.fullName || user.email,
     activePatients,
     pendingAssessments,
     recentLogs,

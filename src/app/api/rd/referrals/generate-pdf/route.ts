@@ -130,6 +130,8 @@ export async function POST(request: NextRequest) {
     data: { referralStatus: "generating" },
   });
 
+  try {
+
   // Fetch patient profile
   const patient = await prisma.profile.findUnique({
     where: { userId: referral.patientId },
@@ -318,16 +320,7 @@ export async function POST(request: NextRequest) {
   // Upload to GCS
   const storagePath = `${referral.patientId}/${referral_id}.pdf`;
 
-  try {
-    await uploadFile(storagePath, pdfBuffer, "application/pdf");
-  } catch (uploadError: any) {
-    // Revert status
-    await prisma.doctorReferral.update({
-      where: { id: referral_id },
-      data: { referralStatus: "pending" },
-    });
-    return NextResponse.json({ error: `Upload failed: ${uploadError.message}` }, { status: 500 });
-  }
+  await uploadFile(storagePath, pdfBuffer, "application/pdf");
 
   // Update referral with PDF path, ICD-10 codes, and status
   await prisma.doctorReferral.update({
@@ -351,4 +344,14 @@ export async function POST(request: NextRequest) {
     pdf_url: signedUrl,
     icd10_codes: icd10Codes,
   });
+
+  } catch (err: any) {
+    console.error("[generate-pdf] Error:", err.message);
+    // Always revert status on any failure
+    await prisma.doctorReferral.update({
+      where: { id: referral_id },
+      data: { referralStatus: "pending" },
+    }).catch(() => {});
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
 }

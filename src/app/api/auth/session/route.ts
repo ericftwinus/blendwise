@@ -1,4 +1,5 @@
 import { adminAuth } from "@/lib/firebase/admin";
+import { prisma } from "@/lib/db/prisma";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -13,6 +14,7 @@ export async function POST(request: NextRequest) {
 
     // Verify the ID token
     const decoded = await adminAuth.verifyIdToken(idToken);
+    const role = decoded.role || "patient";
 
     // Create session cookie (14 days)
     const expiresIn = 60 * 60 * 24 * 14 * 1000;
@@ -27,6 +29,25 @@ export async function POST(request: NextRequest) {
       sameSite: "lax",
       path: "/",
     });
+
+    // Ensure user + profile exist in DB (handles webhook race condition)
+    await prisma.user.upsert({
+      where: { id: decoded.uid },
+      create: { id: decoded.uid, email: decoded.email || "" },
+      update: {},
+    });
+    await prisma.profile.upsert({
+      where: { userId: decoded.uid },
+      create: { userId: decoded.uid, email: decoded.email || "", fullName: decoded.name || null, role },
+      update: {},
+    });
+    if (role === "rd") {
+      await prisma.rdProfile.upsert({
+        where: { userId: decoded.uid },
+        create: { userId: decoded.uid },
+        update: {},
+      });
+    }
 
     return NextResponse.json({ uid: decoded.uid });
   } catch (err: any) {
