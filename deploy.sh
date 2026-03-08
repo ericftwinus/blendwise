@@ -40,6 +40,11 @@ GCS_BUCKET_NAME=blendwise-referral-documents,\
 XAI_API_KEY=${XAI_API_KEY},\
 AUTH_WEBHOOK_SECRET=${AUTH_WEBHOOK_SECRET},\
 FAX_SANDBOX=true,\
+STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-placeholder},\
+STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-placeholder},\
+STRIPE_PRICE_TIER_2=${STRIPE_PRICE_TIER_2:-placeholder},\
+STRIPE_PRICE_TIER_3=${STRIPE_PRICE_TIER_3:-placeholder},\
+NEXT_PUBLIC_APP_URL=https://blendwisenutrition.com,\
 NODE_ENV=production"
 
 echo "==> Done! Service URL:"

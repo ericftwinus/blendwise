@@ -2,13 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { getServerUser } from "@/lib/firebase/server-auth";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-
-const PRICE_MAP: Record<string, string> = {
-  // Map tier numbers to Stripe Price IDs (set these in env vars)
-  "2": process.env.STRIPE_PRICE_TIER_2 || "",
-  "3": process.env.STRIPE_PRICE_TIER_3 || "",
-};
+function getStripe() {
+  return new Stripe(process.env.STRIPE_SECRET_KEY!);
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,7 +14,11 @@ export async function POST(req: NextRequest) {
     }
 
     const { tier } = await req.json();
-    const priceId = PRICE_MAP[String(tier)];
+    const priceMap: Record<string, string> = {
+      "2": process.env.STRIPE_PRICE_TIER_2 || "",
+      "3": process.env.STRIPE_PRICE_TIER_3 || "",
+    };
+    const priceId = priceMap[String(tier)];
 
     if (!priceId) {
       return NextResponse.json(
@@ -27,6 +27,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const stripe = getStripe();
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       payment_method_types: ["card"],
