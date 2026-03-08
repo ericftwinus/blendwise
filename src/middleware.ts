@@ -23,17 +23,18 @@ export async function middleware(request: NextRequest) {
         Buffer.from(payloadBase64, "base64").toString("utf-8")
       );
       const role = payload.role || "patient";
+      const isAdmin = payload.admin === true;
 
       // Prevent patients from accessing /rd routes
-      if (role !== "rd" && role !== "admin" && pathname.startsWith("/rd")) {
+      if (role !== "rd" && pathname.startsWith("/rd")) {
         if (pathname === "/rd/signup") return NextResponse.next();
         const url = request.nextUrl.clone();
         url.pathname = "/dashboard";
         return NextResponse.redirect(url);
       }
 
-      // Restrict /admin to admin role
-      if (pathname.startsWith("/admin") && role !== "admin") {
+      // Restrict /admin to users with admin flag
+      if (pathname.startsWith("/admin") && !isAdmin) {
         const url = request.nextUrl.clone();
         url.pathname = role === "rd" ? "/rd" : "/dashboard";
         return NextResponse.redirect(url);

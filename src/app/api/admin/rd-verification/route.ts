@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET() {
   const user = await getServerUser();
-  if (!user || user.role !== "admin") {
+  if (!user || !user.admin) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -36,7 +36,7 @@ export async function GET() {
 
 export async function PATCH(request: NextRequest) {
   const user = await getServerUser();
-  if (!user || user.role !== "admin") {
+  if (!user || !user.admin) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

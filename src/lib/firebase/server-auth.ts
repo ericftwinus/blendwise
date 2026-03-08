@@ -5,6 +5,7 @@ export interface ServerUser {
   uid: string;
   email: string | null;
   role: string;
+  admin: boolean;
 }
 
 export async function getServerUser(): Promise<ServerUser | null> {
@@ -22,6 +23,7 @@ export async function getServerUser(): Promise<ServerUser | null> {
       uid: decoded.uid,
       email: decoded.email || null,
       role: (decoded.role as string) || "patient",
+      admin: decoded.admin === true,
     };
   } catch {
     return null;
