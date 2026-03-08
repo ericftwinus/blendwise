@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Settings, User, Bell, Shield, CreditCard, Save, Users, CheckCircle2 } from "lucide-react";
 
@@ -11,6 +11,14 @@ const TIER_NAMES: Record<number, { name: string; description: string }> = {
 };
 
 export default function SettingsPage() {
+  return (
+    <Suspense fallback={<div className="text-center py-16 text-gray-400">Loading settings...</div>}>
+      <SettingsContent />
+    </Suspense>
+  );
+}
+
+function SettingsContent() {
   const searchParams = useSearchParams();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
