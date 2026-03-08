@@ -122,5 +122,8 @@ export function subscribeToConversations(
       ...d.data(),
     })) as Conversation[];
     callback(conversations);
+  }, (error) => {
+    console.error("subscribeToConversations error:", error);
+    callback([]);
   });
 }
