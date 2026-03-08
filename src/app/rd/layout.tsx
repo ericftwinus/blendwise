@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -9,6 +9,7 @@ import {
   Users,
   ClipboardCheck,
   FileText,
+  MessageSquare,
   Settings,
   LogOut,
   Menu,
@@ -22,6 +23,7 @@ const navItems = [
   { href: "/rd/patients", icon: Users, label: "Patients" },
   { href: "/rd/assessments", icon: ClipboardCheck, label: "Assessment Queue" },
   { href: "/rd/referrals", icon: FileText, label: "Referrals" },
+  { href: "/rd/messages", icon: MessageSquare, label: "Messages" },
   { href: "/rd/settings", icon: Settings, label: "Settings" },
 ];
 
@@ -29,8 +31,37 @@ export default function RDLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [verified, setVerified] = useState<boolean | null>(null);
 
   const { signOut } = useAuth();
+
+  useEffect(() => {
+    // Skip verification check for the pending page itself
+    if (pathname === "/rd/pending-verification") {
+      setVerified(true);
+      return;
+    }
+
+    async function checkVerification() {
+      try {
+        const res = await fetch("/api/rd/verification-status");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.verificationStatus !== "approved") {
+            router.replace("/rd/pending-verification");
+          } else {
+            setVerified(true);
+          }
+        } else {
+          setVerified(true);
+        }
+      } catch {
+        setVerified(true);
+      }
+    }
+
+    checkVerification();
+  }, [pathname, router]);
 
   async function handleSignOut() {
     await signOut();
@@ -43,6 +74,20 @@ export default function RDLayout({ children }: { children: React.ReactNode }) {
   const breadcrumbLabel = segments.length > 1
     ? segments.slice(1).join(" / ").replace(/-/g, " ")
     : null;
+
+  // Show pending-verification page without the layout shell
+  if (pathname === "/rd/pending-verification") {
+    return <>{children}</>;
+  }
+
+  // Show loading while checking verification
+  if (verified === null) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p className="text-gray-400">Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex">

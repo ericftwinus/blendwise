@@ -43,9 +43,10 @@ model Profile {
   addressZip          String?  @map("address_zip")
   dateOfBirth         String?  @map("date_of_birth")
   mrn                 String?
-  onboardingCompleted Boolean  @default(false) @map("onboarding_completed")
-  createdAt           DateTime @default(now()) @map("created_at")
-  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at")
+  onboardingCompleted     Boolean  @default(false) @map("onboarding_completed")
+  notificationPreferences Json?    @map("notification_preferences")
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @default(now()) @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -53,15 +54,16 @@ model Profile {
 }
 
 model RdProfile {
-  id               String   @id @default(uuid())
-  userId           String   @unique @map("user_id")
-  licenseNumber    String?  @map("license_number")
-  licenseState     String?  @map("license_state")
-  specializations  String[] @default([])
-  bio              String?
-  acceptingPatients Boolean @default(true) @map("accepting_patients")
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at")
+  id                  String   @id @default(uuid())
+  userId              String   @unique @map("user_id")
+  licenseNumber       String?  @map("license_number")
+  licenseState        String?  @map("license_state")
+  verificationStatus  String   @default("pending_verification") @map("verification_status")
+  specializations     String[] @default([])
+  bio                 String?
+  acceptingPatients   Boolean  @default(true) @map("accepting_patients")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

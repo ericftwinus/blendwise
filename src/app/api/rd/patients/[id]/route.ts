@@ -41,7 +41,13 @@ export async function GET(
     }),
   ]);
 
-  return NextResponse.json({ profile, assessment, targets, logs });
+  return NextResponse.json({
+    profile,
+    assessment,
+    targets,
+    logs,
+    assignmentStatus: assignment.status,
+  });
 }
 
 export async function PATCH(
@@ -100,6 +106,20 @@ export async function PATCH(
       });
       return NextResponse.json({ targets });
     }
+  }
+
+  if (body.action === "assignment") {
+    const validStatuses = ["active", "paused", "discharged"];
+    if (!validStatuses.includes(body.status)) {
+      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+    }
+
+    await prisma.rdPatientAssignment.update({
+      where: { rdId_patientId: { rdId: user.uid, patientId } },
+      data: { status: body.status },
+    });
+
+    return NextResponse.json({ status: body.status });
   }
 
   return NextResponse.json({ error: "Invalid action" }, { status: 400 });

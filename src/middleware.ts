@@ -5,7 +5,7 @@ export async function middleware(request: NextRequest) {
   const sessionCookie = request.cookies.get("__session")?.value;
 
   // Redirect unauthenticated users away from protected routes
-  if (!sessionCookie && (pathname.startsWith("/dashboard") || pathname.startsWith("/rd"))) {
+  if (!sessionCookie && (pathname.startsWith("/dashboard") || pathname.startsWith("/rd") || pathname.startsWith("/admin"))) {
     // Allow /rd/signup without auth
     if (pathname === "/rd/signup") return NextResponse.next();
     const url = request.nextUrl.clone();
@@ -29,6 +29,13 @@ export async function middleware(request: NextRequest) {
         if (pathname === "/rd/signup") return NextResponse.next();
         const url = request.nextUrl.clone();
         url.pathname = "/dashboard";
+        return NextResponse.redirect(url);
+      }
+
+      // Restrict /admin to admin role
+      if (pathname.startsWith("/admin") && role !== "admin") {
+        const url = request.nextUrl.clone();
+        url.pathname = role === "rd" ? "/rd" : "/dashboard";
         return NextResponse.redirect(url);
       }
 

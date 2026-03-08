@@ -1,6 +1,7 @@
 import { getServerUser } from "@/lib/firebase/server-auth";
 import { prisma } from "@/lib/db/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { notifySymptomLog } from "@/lib/firebase/server-mail";
 
 export async function GET() {
   const user = await getServerUser();
@@ -32,6 +33,31 @@ export async function POST(request: NextRequest) {
       notes: body.notes || null,
     },
   });
+
+  // Fire-and-forget: notify assigned RDs
+  prisma.rdPatientAssignment
+    .findMany({
+      where: { patientId: user.uid, status: "active" },
+      select: {
+        rd: {
+          select: {
+            email: true,
+            profile: { select: { notificationPreferences: true } },
+          },
+        },
+      },
+    })
+    .then(async (assignments) => {
+      const patientProfile = await prisma.profile.findUnique({
+        where: { userId: user.uid },
+        select: { fullName: true },
+      });
+      const patientName = patientProfile?.fullName || "A patient";
+      for (const a of assignments) {
+        notifySymptomLog(a.rd.email, patientName);
+      }
+    })
+    .catch(() => {});
 
   return NextResponse.json({ log });
 }

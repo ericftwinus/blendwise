@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { uid, email, displayName, role } = body;
+  const { uid, email, displayName, role, licenseNumber, licenseState } = body;
 
   if (!uid || !email) {
     return NextResponse.json({ error: "uid and email are required" }, { status: 400 });
@@ -47,8 +47,16 @@ export async function POST(request: NextRequest) {
     if (role === "rd") {
       await tx.rdProfile.upsert({
         where: { userId: uid },
-        create: { userId: uid },
-        update: {},
+        create: {
+          userId: uid,
+          licenseNumber: licenseNumber || null,
+          licenseState: licenseState || null,
+          verificationStatus: "pending_verification",
+        },
+        update: {
+          licenseNumber: licenseNumber || undefined,
+          licenseState: licenseState || undefined,
+        },
       });
     }
   });

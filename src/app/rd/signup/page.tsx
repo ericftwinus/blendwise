@@ -50,6 +50,8 @@ export default function RDSignupPage() {
           email: result.user.email,
           displayName: fullName,
           role: "rd",
+          licenseNumber,
+          licenseState,
         }),
       });
 

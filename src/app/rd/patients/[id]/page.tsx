@@ -9,9 +9,15 @@ import {
   Weight,
   Save,
   CheckCircle2,
+  MessageSquare,
+  Video,
 } from "lucide-react";
+import { useAuth } from "@/lib/firebase/auth-context";
+import { getOrCreateConversation } from "@/lib/firebase/chat";
+import ChatWindow from "@/components/ChatWindow";
+import VideoRoom from "@/components/VideoRoom";
 
-type Tab = "assessment" | "nutrients" | "logs";
+type Tab = "assessment" | "nutrients" | "logs" | "messages";
 
 interface Assessment {
   id: string;
@@ -93,6 +99,7 @@ export default function PatientDetailPage() {
   const params = useParams();
   const router = useRouter();
   const patientId = params.id as string;
+  const { user } = useAuth();
 
   const [tab, setTab] = useState<Tab>("assessment");
   const [patientName, setPatientName] = useState("");
@@ -105,6 +112,11 @@ export default function PatientDetailPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [reviewSaving, setReviewSaving] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [showVideo, setShowVideo] = useState(false);
+  const [assignmentStatus, setAssignmentStatus] = useState("active");
+  const [statusSaving, setStatusSaving] = useState(false);
+  const [statusToast, setStatusToast] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -129,6 +141,7 @@ export default function PatientDetailPage() {
       }
 
       if (data.logs) setLogs(data.logs);
+      if (data.assignmentStatus) setAssignmentStatus(data.assignmentStatus);
 
       setLoading(false);
     }
@@ -153,6 +166,22 @@ export default function PatientDetailPage() {
       setAssessment({ ...assessment, status: newStatus });
     }
     setReviewSaving(false);
+  }
+
+  async function handleAssignmentStatus(newStatus: string) {
+    setStatusSaving(true);
+    const res = await fetch(`/api/rd/patients/${patientId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "assignment", status: newStatus }),
+    });
+    if (res.ok) {
+      setAssignmentStatus(newStatus);
+      const label = newStatus === "active" ? "Reactivated" : newStatus === "paused" ? "Paused" : "Discharged";
+      setStatusToast(`Patient ${label.toLowerCase()} successfully`);
+      setTimeout(() => setStatusToast(null), 3000);
+    }
+    setStatusSaving(false);
   }
 
   async function handleSaveTargets() {
@@ -205,10 +234,28 @@ export default function PatientDetailPage() {
     }));
   }
 
+  // Initialize conversation when messages tab is opened
+  useEffect(() => {
+    if (tab !== "messages" || !user?.uid || !patientName) return;
+    let cancelled = false;
+
+    async function initConv() {
+      const convId = await getOrCreateConversation(user!.uid, patientId, {
+        [user!.uid]: "Your RD",
+        [patientId]: patientName,
+      });
+      if (!cancelled) setConversationId(convId);
+    }
+
+    initConv();
+    return () => { cancelled = true; };
+  }, [tab, user?.uid, patientId, patientName]);
+
   const tabs = [
     { key: "assessment" as Tab, label: "Assessment", icon: ClipboardCheck },
     { key: "nutrients" as Tab, label: "Nutrient Targets", icon: Activity },
     { key: "logs" as Tab, label: "Symptom Logs", icon: Weight },
+    { key: "messages" as Tab, label: "Messages", icon: MessageSquare },
   ];
 
   if (loading) {
@@ -227,17 +274,88 @@ export default function PatientDetailPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
+      {/* Toast notification */}
+      {statusToast && (
+        <div className="fixed top-4 right-4 z-50 bg-green-600 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 text-sm font-medium animate-in">
+          <CheckCircle2 className="w-4 h-4" />
+          {statusToast}
+        </div>
+      )}
+
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => router.push("/rd/patients")}
-          className="p-2 hover:bg-gray-100 rounded-lg transition"
-        >
-          <ArrowLeft className="w-5 h-5 text-gray-500" />
-        </button>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{patientName}</h1>
-          <p className="text-gray-500 text-sm">{patientEmail}</p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => router.push("/rd/patients")}
+            className="p-2 hover:bg-gray-100 rounded-lg transition"
+          >
+            <ArrowLeft className="w-5 h-5 text-gray-500" />
+          </button>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-gray-900">{patientName}</h1>
+              <span
+                className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${
+                  assignmentStatus === "active"
+                    ? "bg-green-100 text-green-700"
+                    : assignmentStatus === "paused"
+                    ? "bg-yellow-100 text-yellow-700"
+                    : "bg-gray-100 text-gray-500"
+                }`}
+              >
+                {assignmentStatus}
+              </span>
+            </div>
+            <p className="text-gray-500 text-sm">{patientEmail}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {assignmentStatus === "active" && (
+            <>
+              <button
+                onClick={() => handleAssignmentStatus("paused")}
+                disabled={statusSaving}
+                className="text-sm px-3 py-1.5 border border-yellow-300 text-yellow-700 rounded-lg font-medium hover:bg-yellow-50 disabled:opacity-50 transition"
+              >
+                Pause
+              </button>
+              <button
+                onClick={() => handleAssignmentStatus("discharged")}
+                disabled={statusSaving}
+                className="text-sm px-3 py-1.5 border border-red-300 text-red-600 rounded-lg font-medium hover:bg-red-50 disabled:opacity-50 transition"
+              >
+                Discharge
+              </button>
+            </>
+          )}
+          {assignmentStatus === "paused" && (
+            <>
+              <button
+                onClick={() => handleAssignmentStatus("active")}
+                disabled={statusSaving}
+                className="text-sm px-3 py-1.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 transition"
+              >
+                Reactivate
+              </button>
+              <button
+                onClick={() => handleAssignmentStatus("discharged")}
+                disabled={statusSaving}
+                className="text-sm px-3 py-1.5 border border-red-300 text-red-600 rounded-lg font-medium hover:bg-red-50 disabled:opacity-50 transition"
+              >
+                Discharge
+              </button>
+            </>
+          )}
+          {assignmentStatus === "discharged" && (
+            <button
+              onClick={() => handleAssignmentStatus("active")}
+              disabled={statusSaving}
+              className="text-sm px-3 py-1.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 transition"
+            >
+              Reactivate
+            </button>
+          )}
         </div>
       </div>
 
@@ -634,6 +752,46 @@ export default function PatientDetailPage() {
                 </div>
               ))}
             </div>
+          )}
+        </div>
+      )}
+
+      {/* Messages Tab */}
+      {tab === "messages" && (
+        <div className="space-y-4">
+          {showVideo ? (
+            <div className="h-[500px]">
+              <VideoRoom
+                currentUserId={user!.uid}
+                remoteUserId={patientId}
+                remoteName={patientName}
+                onClose={() => setShowVideo(false)}
+              />
+            </div>
+          ) : (
+            <>
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setShowVideo(true)}
+                  className="flex items-center gap-2 text-sm px-4 py-2 bg-accent-600 text-white rounded-lg font-medium hover:bg-accent-700 transition"
+                >
+                  <Video className="w-4 h-4" />
+                  Video Call
+                </button>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-200 h-[500px] flex flex-col">
+                {conversationId && user ? (
+                  <ChatWindow
+                    conversationId={conversationId}
+                    currentUserId={user.uid}
+                  />
+                ) : (
+                  <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
+                    Loading chat...
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </div>
       )}

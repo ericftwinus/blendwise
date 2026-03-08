@@ -13,6 +13,10 @@ import {
   Calendar,
   Heart,
   Shield,
+  UserCheck,
+  Mail,
+  Phone,
+  MessageSquare,
 } from "lucide-react";
 
 const quickActions = [
@@ -46,6 +50,15 @@ const quickActions = [
   },
 ];
 
+interface AssignedRd {
+  id: string;
+  name: string | null;
+  email: string;
+  phone: string | null;
+  specializations: string[];
+  bio: string | null;
+}
+
 interface DashboardData {
   userName: string;
   onboardingCompleted: boolean;
@@ -55,6 +68,7 @@ interface DashboardData {
   lastWeight: string | null;
   logStreak: number;
   tier: number;
+  assignedRd: AssignedRd | null;
 }
 
 export default function DashboardPage() {
@@ -67,6 +81,7 @@ export default function DashboardPage() {
     lastWeight: null,
     logStreak: 0,
     tier: 1,
+    assignedRd: null,
   });
 
   useEffect(() => {
@@ -121,6 +136,71 @@ export default function DashboardPage() {
             </div>
           </div>
         </Link>
+      )}
+
+      {/* Assigned RD Card */}
+      {data.assignedRd ? (
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 bg-brand-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <UserCheck className="w-6 h-6 text-brand-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-gray-900">Your Registered Dietitian</h3>
+              <p className="text-lg font-bold text-gray-900 mt-1">
+                {data.assignedRd.name || "RD"}
+              </p>
+              {data.assignedRd.specializations.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {data.assignedRd.specializations.map((s) => (
+                    <span
+                      key={s}
+                      className="text-xs bg-brand-50 text-brand-700 px-2 py-0.5 rounded-full"
+                    >
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {data.assignedRd.bio && (
+                <p className="text-sm text-gray-500 mt-2">{data.assignedRd.bio}</p>
+              )}
+              <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-gray-600">
+                {data.assignedRd.email && (
+                  <span className="flex items-center gap-1">
+                    <Mail className="w-3.5 h-3.5 text-gray-400" />
+                    {data.assignedRd.email}
+                  </span>
+                )}
+                {data.assignedRd.phone && (
+                  <span className="flex items-center gap-1">
+                    <Phone className="w-3.5 h-3.5 text-gray-400" />
+                    {data.assignedRd.phone}
+                  </span>
+                )}
+              </div>
+              <Link
+                href="/dashboard/messages"
+                className="inline-flex items-center gap-1.5 mt-3 text-sm font-medium text-brand-600 hover:text-brand-700"
+              >
+                <MessageSquare className="w-4 h-4" />
+                Send a message
+              </Link>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-gray-50 rounded-xl border border-gray-200 p-5 flex items-center gap-4">
+          <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
+            <UserCheck className="w-6 h-6 text-gray-400" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-900">No RD Assigned Yet</h3>
+            <p className="text-sm text-gray-500 mt-0.5">
+              Complete your onboarding and assessment to be matched with a Registered Dietitian.
+            </p>
+          </div>
+        </div>
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

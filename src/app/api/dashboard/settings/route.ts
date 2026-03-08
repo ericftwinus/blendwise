@@ -19,17 +19,19 @@ export async function PATCH(request: NextRequest) {
 
   const body = await request.json();
 
+  const updateData: Record<string, unknown> = {};
+  if (body.fullName !== undefined) updateData.fullName = body.fullName;
+  if (body.phone !== undefined) updateData.phone = body.phone;
+  if (body.addressLine1 !== undefined) updateData.addressLine1 = body.addressLine1;
+  if (body.addressCity !== undefined) updateData.addressCity = body.addressCity;
+  if (body.addressState !== undefined) updateData.addressState = body.addressState;
+  if (body.addressZip !== undefined) updateData.addressZip = body.addressZip;
+  if (body.dateOfBirth !== undefined) updateData.dateOfBirth = body.dateOfBirth;
+  if (body.notificationPreferences !== undefined) updateData.notificationPreferences = body.notificationPreferences;
+
   const profile = await prisma.profile.update({
     where: { userId: user.uid },
-    data: {
-      fullName: body.fullName,
-      phone: body.phone,
-      addressLine1: body.addressLine1,
-      addressCity: body.addressCity,
-      addressState: body.addressState,
-      addressZip: body.addressZip,
-      dateOfBirth: body.dateOfBirth,
-    },
+    data: updateData,
   });
 
   return NextResponse.json({ profile });

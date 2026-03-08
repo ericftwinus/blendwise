@@ -13,6 +13,7 @@ import {
   Activity,
   Weight,
   Video,
+  MessageSquare,
   Settings,
   LogOut,
   Menu,
@@ -29,6 +30,7 @@ const navItems = [
   { href: "/dashboard/recipes", icon: Salad, label: "Recipes" },
   { href: "/dashboard/grocery", icon: ShoppingCart, label: "Grocery Lists" },
   { href: "/dashboard/tracking", icon: Weight, label: "Symptom Tracking" },
+  { href: "/dashboard/messages", icon: MessageSquare, label: "Messages" },
   { href: "/dashboard/education", icon: Video, label: "Education" },
   { href: "/dashboard/settings", icon: Settings, label: "Settings" },
 ];

@@ -4,6 +4,7 @@ import { Check, Star } from "lucide-react";
 const tiers = [
   {
     name: "Clinical Access",
+    tier: 1,
     stars: 1,
     price: "Copay / Out-of-Pocket",
     priceNote: "Insurance reimbursement or direct payment",
@@ -21,6 +22,7 @@ const tiers = [
   },
   {
     name: "Personalized Automation",
+    tier: 2,
     stars: 2,
     price: "$39",
     priceNote: "per month",
@@ -38,6 +40,7 @@ const tiers = [
   },
   {
     name: "Full Convenience",
+    tier: 3,
     stars: 3,
     price: "$79",
     priceNote: "per month",
@@ -109,7 +112,7 @@ export default function PricingSection() {
               </ul>
 
               <Link
-                href="/signup"
+                href={tier.tier === 1 ? "/signup" : `/signup?tier=${tier.tier}`}
                 className={`block text-center py-3 rounded-xl font-semibold transition ${
                   tier.highlighted
                     ? "bg-brand-600 text-white hover:bg-brand-700 shadow-lg shadow-brand-600/25"
