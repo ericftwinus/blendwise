@@ -6,7 +6,18 @@
 #   - gcloud CLI authenticated (gcloud auth login)
 #   - Project: blendwise-nutrition
 #   - Region: us-central1
+#   - .env.deploy file with secrets (see .env.deploy.example)
 # ============================================================
+
+# --- Load secrets from .env.deploy ---
+if [ -f .env.deploy ]; then
+  set -a
+  source .env.deploy
+  set +a
+else
+  echo "ERROR: .env.deploy not found. Create it with DATABASE_URL, XAI_API_KEY, AUTH_WEBHOOK_SECRET, and Stripe vars."
+  exit 1
+fi
 
 # --- Config ---
 PROJECT_ID="blendwise-nutrition"

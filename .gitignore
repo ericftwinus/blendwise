@@ -65,4 +65,7 @@ gcloud.sh
 # Functions secrets
 functions/.env
 
+# Deployment secrets
+.env.deploy
+
 /src/generated/prisma
