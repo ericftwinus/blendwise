@@ -13,6 +13,7 @@ model User {
 
   profile              Profile?
   rdProfile            RdProfile?
+  patientIntake        PatientIntake?
   assessments          Assessment[]
   nutrientTargets      NutrientTarget[]
   symptomLogs          SymptomLog[]
@@ -278,4 +279,63 @@ model FaxLog {
   referral DoctorReferral? @relation(fields: [referralId], references: [id], onDelete: SetNull)
 
   @@map("fax_logs")
+}
+
+model PatientIntake {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id")
+
+  // Section 1: Patient Info
+  sex              String?
+  heightCm         Float?   @map("height_cm")
+  weightKg         Float?   @map("weight_kg")
+
+  // Section 2: Medical Background
+  medicalDiagnoses   String?  @map("medical_diagnoses")
+  currentMedications String?  @map("current_medications")
+  medicationAllergies String? @map("medication_allergies")
+  foodAllergies      String?  @map("food_allergies")
+  surgicalHistory    String?  @map("surgical_history")
+  hasRecentLabs      Boolean  @default(false) @map("has_recent_labs")
+
+  // Section 3: Nutrition & Tube Status
+  oralIntakeDescription String?  @map("oral_intake_description")
+  tubeType              String?  @map("tube_type")
+  tubeProfile           String?  @map("tube_profile")
+  extensionSetType      String?  @map("extension_set_type")
+  frenchSize            String?  @map("french_size")
+  unsureFrenchSize      Boolean  @default(false) @map("unsure_french_size")
+  lastTubeChangeDate    String?  @map("last_tube_change_date")
+  currentFormula        String?  @map("current_formula")
+
+  // Delivery methods (JSON for flexibility)
+  deliveryMethods       Json?    @map("delivery_methods")
+
+  // Section 4: Hydration
+  waterFlushes     String?  @map("water_flushes")
+  oralFluidIntake  String?  @map("oral_fluid_intake")
+  hydrationNotes   String?  @map("hydration_notes")
+
+  // Section 5: GI Symptoms
+  giSymptoms       String[] @default([]) @map("gi_symptoms")
+  giSymptomsOther  String?  @map("gi_symptoms_other")
+
+  // Section 6: Food Preferences
+  foodPreferences  String?  @map("food_preferences")
+  diagnosedFoodAllergies String? @map("diagnosed_food_allergies")
+
+  // Section 7: Kitchen Setup
+  kitchenEquipment String[] @default([]) @map("kitchen_equipment")
+  kitchenOther     String?  @map("kitchen_other")
+
+  // Section 8: Additional Notes
+  additionalNotes  String?  @map("additional_notes")
+
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("patient_intakes")
 }

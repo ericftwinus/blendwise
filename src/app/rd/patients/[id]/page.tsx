@@ -5,19 +5,25 @@ import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ClipboardCheck,
+  ClipboardList,
   Activity,
   Weight,
   Save,
   CheckCircle2,
   MessageSquare,
   Video,
+  Calculator,
+  Utensils,
 } from "lucide-react";
 import { useAuth } from "@/lib/firebase/auth-context";
 import { getOrCreateConversation } from "@/lib/firebase/chat";
 import ChatWindow from "@/components/ChatWindow";
 import VideoRoom from "@/components/VideoRoom";
+import { calculateEnergy, calculateProtein, calculateFluid, ageFromDob } from "@/lib/calculators";
+import { generatePatientPlan } from "@/lib/nutrition/exchangeEngine";
+import { RESTRICTION_OPTIONS } from "@/lib/nutrition/exchangeData";
 
-type Tab = "assessment" | "nutrients" | "logs" | "messages";
+type Tab = "intake" | "assessment" | "nutrients" | "logs" | "messages" | "plan";
 
 interface Assessment {
   id: string;
@@ -101,9 +107,13 @@ export default function PatientDetailPage() {
   const patientId = params.id as string;
   const { user } = useAuth();
 
-  const [tab, setTab] = useState<Tab>("assessment");
+  const [tab, setTab] = useState<Tab>("intake");
   const [patientName, setPatientName] = useState("");
   const [patientEmail, setPatientEmail] = useState("");
+  const [patientDob, setPatientDob] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [intake, setIntake] = useState<any>(null);
+  const [planRestrictions, setPlanRestrictions] = useState<string[]>([]);
   const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [targets, setTargets] = useState<NutrientTargets>(emptyTargets);
   const [existingTargetId, setExistingTargetId] = useState<string | null>(null);
@@ -131,8 +141,10 @@ export default function PatientDetailPage() {
       if (data.profile) {
         setPatientName(data.profile.fullName || "Unknown");
         setPatientEmail(data.profile.email || "");
+        setPatientDob(data.profile.dateOfBirth || null);
       }
 
+      if (data.intake) setIntake(data.intake);
       if (data.assessment) setAssessment(data.assessment);
 
       if (data.targets) {
@@ -252,9 +264,11 @@ export default function PatientDetailPage() {
   }, [tab, user?.uid, patientId, patientName]);
 
   const tabs = [
+    { key: "intake" as Tab, label: "Intake", icon: ClipboardList },
     { key: "assessment" as Tab, label: "Assessment", icon: ClipboardCheck },
-    { key: "nutrients" as Tab, label: "Nutrient Targets", icon: Activity },
-    { key: "logs" as Tab, label: "Symptom Logs", icon: Weight },
+    { key: "nutrients" as Tab, label: "Nutrients", icon: Activity },
+    { key: "plan" as Tab, label: "Plan Builder", icon: Utensils },
+    { key: "logs" as Tab, label: "Logs", icon: Weight },
     { key: "messages" as Tab, label: "Messages", icon: MessageSquare },
   ];
 
@@ -376,6 +390,141 @@ export default function PatientDetailPage() {
           </button>
         ))}
       </div>
+
+      {/* Intake Tab */}
+      {tab === "intake" && (
+        <div className="space-y-4">
+          {!intake ? (
+            <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
+              <ClipboardList className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500">No intake form submitted yet.</p>
+            </div>
+          ) : (
+            <>
+              {/* Calculator Card */}
+              {intake.heightCm && intake.weightKg && (patientDob || intake.sex) && (
+                <div className="bg-white rounded-xl border border-gray-200 p-5">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Calculator className="w-4 h-4 text-accent-600" />
+                    Clinical Calculators (Mifflin-St Jeor)
+                  </h3>
+                  {(() => {
+                    const age = patientDob ? ageFromDob(patientDob) : 30;
+                    const sex = (intake.sex === "Male" || intake.sex === "Female") ? intake.sex : "Female";
+                    const energy = calculateEnergy({ weightKg: intake.weightKg, heightCm: intake.heightCm, age, sex });
+                    const protein = calculateProtein(intake.weightKg);
+                    const fluid = calculateFluid(intake.weightKg, energy.totalMax);
+                    return (
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                        <div className="bg-blue-50 rounded-lg p-3">
+                          <p className="text-xs text-blue-600 font-medium">BMR</p>
+                          <p className="text-lg font-bold text-blue-900">{energy.bmr} kcal</p>
+                        </div>
+                        <div className="bg-green-50 rounded-lg p-3">
+                          <p className="text-xs text-green-600 font-medium">Energy Needs</p>
+                          <p className="text-lg font-bold text-green-900">{energy.totalMin} - {energy.totalMax} kcal</p>
+                        </div>
+                        <div className="bg-purple-50 rounded-lg p-3">
+                          <p className="text-xs text-purple-600 font-medium">Protein ({protein.gPerKg.min}-{protein.gPerKg.max} g/kg)</p>
+                          <p className="text-lg font-bold text-purple-900">{protein.min} - {protein.max} g</p>
+                        </div>
+                        <div className="bg-cyan-50 rounded-lg p-3">
+                          <p className="text-xs text-cyan-600 font-medium">Fluids (30-40 mL/kg)</p>
+                          <p className="text-lg font-bold text-cyan-900">{fluid.byWeight.min} - {fluid.byWeight.max} mL</p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                  <p className="text-xs text-gray-400 mt-2">
+                    Based on: {intake.weightKg} kg, {intake.heightCm} cm, {intake.sex || "Unknown"}{patientDob ? `, age ${ageFromDob(patientDob)}` : ""}
+                  </p>
+                </div>
+              )}
+
+              {/* Intake Details */}
+              <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
+                <Section title="Patient Info">
+                  <Field label="Sex" value={intake.sex} />
+                  <Field label="Height" value={intake.heightCm ? `${intake.heightCm} cm` : null} />
+                  <Field label="Weight" value={intake.weightKg ? `${intake.weightKg} kg` : null} />
+                </Section>
+
+                <Section title="Medical Background">
+                  <Field label="Diagnoses" value={intake.medicalDiagnoses} />
+                  <Field label="Medications" value={intake.currentMedications} />
+                  <Field label="Allergies (Med/Food)" value={intake.medicationAllergies} />
+                  <Field label="Surgical History" value={intake.surgicalHistory} />
+                  <Field label="Recent Labs" value={intake.hasRecentLabs ? "Uploaded" : "Not provided"} />
+                </Section>
+
+                <Section title="Nutrition & Tube Status">
+                  <Field label="Oral Intake" value={intake.oralIntakeDescription} />
+                  <Field label="Tube Type" value={intake.tubeType} />
+                  <Field label="Tube Profile" value={intake.tubeProfile} />
+                  <Field label="Extension Set" value={intake.extensionSetType} />
+                  <Field label="French Size" value={intake.frenchSize || (intake.unsureFrenchSize ? "Patient unsure" : null)} />
+                  <Field label="Last Tube Change" value={intake.lastTubeChangeDate} />
+                  <Field label="Current Formula" value={intake.currentFormula} />
+                  {intake.deliveryMethods && (
+                    <div className="mt-2">
+                      <p className="text-xs font-medium text-gray-500 mb-1">Delivery Methods</p>
+                      <div className="text-sm text-gray-700 space-y-1">
+                        {intake.deliveryMethods.bolus && <p>Bolus: {intake.deliveryMethods.bolusFeeds} feeds/day, {intake.deliveryMethods.bolusVolume} mL each</p>}
+                        {intake.deliveryMethods.gravity && <p>Gravity: {intake.deliveryMethods.gravityFreq}x/day, {intake.deliveryMethods.gravityVolume} mL each</p>}
+                        {intake.deliveryMethods.pump && <p>Pump: {intake.deliveryMethods.pumpRate} mL/hr, {intake.deliveryMethods.pumpHours} hrs/day</p>}
+                        {intake.deliveryMethods.totalDailyVolume && <p className="font-medium">Total Daily Volume: {intake.deliveryMethods.totalDailyVolume} mL</p>}
+                      </div>
+                    </div>
+                  )}
+                </Section>
+
+                <Section title="Hydration">
+                  <Field label="Water Flushes" value={intake.waterFlushes} />
+                  <Field label="Oral Fluid Intake" value={intake.oralFluidIntake} />
+                  <Field label="Notes" value={intake.hydrationNotes} />
+                </Section>
+
+                <Section title="GI Symptoms">
+                  {intake.giSymptoms?.length > 0 ? (
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {intake.giSymptoms.map((s: string) => (
+                        <span key={s} className="text-xs bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full">{s}</span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-400">None reported</p>
+                  )}
+                  {intake.giSymptomsOther && <p className="text-sm text-gray-600 mt-1">{intake.giSymptomsOther}</p>}
+                </Section>
+
+                <Section title="Food Preferences & Allergies">
+                  <Field label="Preferences/Avoidances" value={intake.foodPreferences} />
+                  <Field label="Diagnosed Allergies" value={intake.diagnosedFoodAllergies} />
+                </Section>
+
+                <Section title="Kitchen Equipment">
+                  {intake.kitchenEquipment?.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {intake.kitchenEquipment.map((e: string) => (
+                        <span key={e} className="text-xs bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full">{e}</span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-400">None specified</p>
+                  )}
+                  {intake.kitchenOther && <p className="text-sm text-gray-600 mt-1">{intake.kitchenOther}</p>}
+                </Section>
+
+                {intake.additionalNotes && (
+                  <Section title="Additional Notes">
+                    <p className="text-sm text-gray-700 bg-gray-50 rounded-lg p-3">{intake.additionalNotes}</p>
+                  </Section>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Assessment Tab */}
       {tab === "assessment" && (
@@ -753,6 +902,77 @@ export default function PatientDetailPage() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Plan Builder Tab */}
+      {tab === "plan" && (
+        <div className="space-y-4">
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <Utensils className="w-5 h-5 text-accent-600" />
+              Exchange Plan Builder
+            </h2>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Dietary Restrictions</label>
+              <div className="flex flex-wrap gap-2">
+                {RESTRICTION_OPTIONS.map((r) => (
+                  <button
+                    key={r.key}
+                    type="button"
+                    onClick={() => setPlanRestrictions((prev) =>
+                      prev.includes(r.key) ? prev.filter((x) => x !== r.key) : [...prev, r.key]
+                    )}
+                    className={`text-sm px-3 py-1.5 rounded-full border transition ${
+                      planRestrictions.includes(r.key)
+                        ? "bg-accent-50 border-accent-300 text-accent-700 font-medium"
+                        : "border-gray-200 text-gray-600 hover:border-gray-300"
+                    }`}
+                  >
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {(() => {
+              const plan = generatePatientPlan(planRestrictions);
+              return (
+                <>
+                  <div className="bg-accent-50 border border-accent-200 rounded-lg p-4 mb-6">
+                    <p className="text-sm font-semibold text-accent-800">Daily Instructions</p>
+                    <p className="text-sm text-accent-700 mt-1">{plan.dailyInstruction}</p>
+                    <p className="text-xs text-accent-500 mt-2">
+                      {plan.safeItems.length} safe foods available | {plan.removedCount} removed by restrictions
+                    </p>
+                  </div>
+
+                  <div className="space-y-6">
+                    {Object.entries(plan.groupedItems).map(([group, items]) => (
+                      <div key={group}>
+                        <h3 className="text-sm font-semibold text-gray-900 mb-2">{group} ({items.length})</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {items.map((item) => (
+                            <div key={item.name} className="flex items-center justify-between border border-gray-100 rounded-lg px-3 py-2 text-sm">
+                              <div>
+                                <span className="font-medium text-gray-900">{item.name}</span>
+                                <span className="text-gray-400 ml-2">{item.serving}</span>
+                              </div>
+                              <div className="text-right text-xs text-gray-500">
+                                <span>{item.calories} cal</span>
+                                {item.protein > 0 && <span className="ml-2">{item.protein}g P</span>}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              );
+            })()}
+          </div>
         </div>
       )}
 

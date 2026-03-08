@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   Shield,
   ClipboardCheck,
+  ClipboardList,
   Salad,
   ShoppingCart,
   Activity,
@@ -25,6 +26,7 @@ import { useAuth } from "@/lib/firebase/auth-context";
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Overview" },
   { href: "/dashboard/onboarding", icon: Shield, label: "Onboarding" },
+  { href: "/dashboard/intake", icon: ClipboardList, label: "Intake Form" },
   { href: "/dashboard/assessment", icon: ClipboardCheck, label: "RD Assessment" },
   { href: "/dashboard/nutrients", icon: Activity, label: "Nutrient Targets" },
   { href: "/dashboard/recipes", icon: Salad, label: "Recipes" },

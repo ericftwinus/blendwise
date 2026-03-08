@@ -21,10 +21,10 @@ export async function GET(
     return NextResponse.json({ error: "Patient not assigned to you" }, { status: 403 });
   }
 
-  const [profile, assessment, targets, logs] = await Promise.all([
+  const [profile, assessment, targets, logs, intake] = await Promise.all([
     prisma.profile.findUnique({
       where: { userId: patientId },
-      select: { fullName: true, email: true },
+      select: { fullName: true, email: true, dateOfBirth: true },
     }),
     prisma.assessment.findFirst({
       where: { userId: patientId },
@@ -39,6 +39,9 @@ export async function GET(
       orderBy: { date: "desc" },
       take: 30,
     }),
+    prisma.patientIntake.findUnique({
+      where: { userId: patientId },
+    }),
   ]);
 
   return NextResponse.json({
@@ -46,6 +49,7 @@ export async function GET(
     assessment,
     targets,
     logs,
+    intake,
     assignmentStatus: assignment.status,
   });
 }
