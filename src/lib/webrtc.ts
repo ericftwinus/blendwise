@@ -194,5 +194,7 @@ export function subscribeToIncomingCalls(
         callback({ callId: change.doc.id, callerId: data.callerId });
       }
     });
+  }, (error) => {
+    console.error("subscribeToIncomingCalls error:", error);
   });
 }

@@ -7,6 +7,7 @@ import {
   subscribeToConversations,
   Conversation,
 } from "@/lib/firebase/chat";
+import { subscribeToIncomingCalls } from "@/lib/webrtc";
 import ChatWindow from "@/components/ChatWindow";
 import VideoRoom from "@/components/VideoRoom";
 
@@ -16,6 +17,10 @@ export default function RdMessagesPage() {
   const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showVideo, setShowVideo] = useState(false);
+  const [incomingCall, setIncomingCall] = useState<{
+    callId: string;
+    callerId: string;
+  } | null>(null);
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -26,6 +31,17 @@ export default function RdMessagesPage() {
       if (!selectedConvId && convs.length > 0) {
         setSelectedConvId(convs[0].id);
       }
+    });
+
+    return () => unsub();
+  }, [user?.uid]);
+
+  // Listen for incoming calls
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const unsub = subscribeToIncomingCalls(user.uid, (call) => {
+      setIncomingCall(call);
     });
 
     return () => unsub();
@@ -56,6 +72,60 @@ export default function RdMessagesPage() {
       : "Patient";
   }
 
+  // Find the caller's name from conversations
+  function getCallerName() {
+    if (!incomingCall) return "Patient";
+    for (const conv of conversations) {
+      if (conv.participants.includes(incomingCall.callerId)) {
+        return conv.participantNames?.[incomingCall.callerId] || "Patient";
+      }
+    }
+    return "Patient";
+  }
+
+  // Handle incoming call
+  if (incomingCall && !showVideo) {
+    const callerName = getCallerName();
+    // Auto-select the conversation with the caller
+    const callerConv = conversations.find((c) =>
+      c.participants.includes(incomingCall.callerId)
+    );
+
+    return (
+      <div className="max-w-lg mx-auto mt-16 text-center">
+        <div className="bg-white rounded-xl border border-gray-200 p-8">
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <Video className="w-8 h-8 text-green-600" />
+          </div>
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">
+            Incoming Video Call
+          </h2>
+          <p className="text-gray-500 text-sm mb-6">
+            {callerName} is calling you
+          </p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => setIncomingCall(null)}
+              className="px-6 py-2.5 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition"
+            >
+              Decline
+            </button>
+            <button
+              onClick={() => {
+                if (callerConv) setSelectedConvId(callerConv.id);
+                setShowVideo(true);
+              }}
+              className="px-6 py-2.5 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition"
+            >
+              Accept
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Video call view
   if (showVideo && remoteUserId) {
     return (
       <div className="h-[calc(100vh-8rem)]">
@@ -63,7 +133,11 @@ export default function RdMessagesPage() {
           currentUserId={user.uid}
           remoteUserId={remoteUserId}
           remoteName={remoteName}
-          onClose={() => setShowVideo(false)}
+          incomingCallId={incomingCall?.callId}
+          onClose={() => {
+            setShowVideo(false);
+            setIncomingCall(null);
+          }}
         />
       </div>
     );
