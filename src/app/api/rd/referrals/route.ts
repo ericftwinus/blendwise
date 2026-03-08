@@ -78,25 +78,28 @@ export async function PATCH(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { referral_id, status, notes } = body;
+  const { referral_id, status, notes, doctorFax } = body;
 
-  if (!referral_id || !status) {
-    return NextResponse.json({ error: "referral_id and status are required" }, { status: 400 });
-  }
-
-  const validStatuses = ["pending", "generating", "ready", "sent", "signed", "expired", "declined", "fax_failed"];
-  if (!validStatuses.includes(status)) {
-    return NextResponse.json({ error: `Invalid status. Must be one of: ${validStatuses.join(", ")}` }, { status: 400 });
+  if (!referral_id) {
+    return NextResponse.json({ error: "referral_id is required" }, { status: 400 });
   }
 
   const updateData: Record<string, unknown> = {
-    referralStatus: status,
     rdId: user.uid,
   };
 
-  if (status === "sent") updateData.referralSentAt = new Date();
-  if (status === "signed") updateData.referralSignedAt = new Date();
+  if (status) {
+    const validStatuses = ["pending", "generating", "ready", "sent", "signed", "expired", "declined", "fax_failed"];
+    if (!validStatuses.includes(status)) {
+      return NextResponse.json({ error: `Invalid status. Must be one of: ${validStatuses.join(", ")}` }, { status: 400 });
+    }
+    updateData.referralStatus = status;
+    if (status === "sent") updateData.referralSentAt = new Date();
+    if (status === "signed") updateData.referralSignedAt = new Date();
+  }
+
   if (notes !== undefined) updateData.notes = notes;
+  if (doctorFax !== undefined) updateData.doctorFax = doctorFax || null;
 
   const referral = await prisma.doctorReferral.update({
     where: { id: referral_id },

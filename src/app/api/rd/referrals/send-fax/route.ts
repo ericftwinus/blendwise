@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { referral_id } = body;
+  const { referral_id, fax_number } = body;
 
   if (!referral_id) {
     return NextResponse.json({ error: "referral_id required" }, { status: 400 });
@@ -35,8 +35,19 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!referral.doctorFax) {
-    return NextResponse.json({ error: "No fax number on file for this doctor" }, { status: 400 });
+  // Use override fax number if provided, otherwise use the one on file
+  const targetFax = fax_number || referral.doctorFax;
+
+  if (!targetFax) {
+    return NextResponse.json({ error: "No fax number provided or on file for this doctor" }, { status: 400 });
+  }
+
+  // Save the fax number to the referral if it was provided as an override
+  if (fax_number && fax_number !== referral.doctorFax) {
+    await prisma.doctorReferral.update({
+      where: { id: referral_id },
+      data: { doctorFax: fax_number },
+    });
   }
 
   if (!referral.pdfStoragePath) {
@@ -55,7 +66,7 @@ export async function POST(request: NextRequest) {
 
   // Send fax
   const result = await sendFax({
-    toNumber: referral.doctorFax,
+    toNumber: targetFax,
     pdfBuffer,
     referralId: referral_id,
     attemptNumber,

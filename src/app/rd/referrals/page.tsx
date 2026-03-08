@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   FileText, Send, CheckCircle2, Clock, XCircle, AlertCircle,
-  ChevronDown, ChevronUp, RefreshCw, Download, Eye, RotateCcw, Loader2, Zap,
+  ChevronDown, ChevronUp, RefreshCw, Download, Eye, RotateCcw, Loader2, Zap, Pencil, Check,
 } from "lucide-react";
 
 interface Referral {
@@ -77,6 +77,9 @@ export default function ReferralsPage() {
   const [faxLogs, setFaxLogs] = useState<Record<string, FaxLog[]>>({});
   const [confirmFax, setConfirmFax] = useState<string | null>(null);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+  const [manualFax, setManualFax] = useState<string>("");
+  const [editingFaxId, setEditingFaxId] = useState<string | null>(null);
+  const [editFaxValue, setEditFaxValue] = useState("");
 
   async function loadReferrals() {
     try {
@@ -116,21 +119,33 @@ export default function ReferralsPage() {
     setActionLoading(null);
   }
 
-  async function sendFax(referralId: string) {
+  async function sendFax(referralId: string, faxNumber?: string) {
     setConfirmFax(null);
     setActionLoading(referralId);
     try {
+      const payload: Record<string, string> = { referral_id: referralId };
+      if (faxNumber) payload.fax_number = faxNumber;
       const res = await fetch("/api/rd/referrals/send-fax", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ referral_id: referralId }),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
         await loadReferrals();
         await loadFaxLogs(referralId);
       }
     } catch { /* silently fail */ }
+    setManualFax("");
     setActionLoading(null);
+  }
+
+  async function saveFaxNumber(referralId: string, faxNumber: string) {
+    await fetch("/api/rd/referrals", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ referral_id: referralId, doctorFax: faxNumber }),
+    });
+    await loadReferrals();
   }
 
   async function updateStatus(referralId: string, newStatus: string) {
@@ -215,29 +230,47 @@ export default function ReferralsPage() {
         </div>
       )}
 
-      {confirmFax && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
-            <h3 className="font-semibold text-gray-900 text-lg">Confirm Fax Send</h3>
-            <p className="text-sm text-gray-600">This will send the referral PDF via secure fax to the doctor&apos;s fax number on file.</p>
-            {(() => {
-              const r = referrals.find((ref) => ref.id === confirmFax);
-              return r ? (
-                <div className="bg-gray-50 rounded-lg p-3 text-sm">
-                  <p className="text-gray-700"><strong>To:</strong> {r.doctorName} \u2014 {r.doctorFax}</p>
-                  <p className="text-gray-700"><strong>Patient:</strong> {r.profiles.fullName}</p>
+      {confirmFax && (() => {
+        const r = referrals.find((ref) => ref.id === confirmFax);
+        const currentFax = manualFax || r?.doctorFax || "";
+        return (
+          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
+              <h3 className="font-semibold text-gray-900 text-lg">Confirm Fax Send</h3>
+              <p className="text-sm text-gray-600">This will send the referral PDF via secure fax.</p>
+              {r && (
+                <div className="space-y-3">
+                  <div className="bg-gray-50 rounded-lg p-3 text-sm">
+                    <p className="text-gray-700"><strong>To:</strong> {r.doctorName}</p>
+                    <p className="text-gray-700"><strong>Patient:</strong> {r.profiles.fullName}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Fax Number</label>
+                    <input
+                      type="tel"
+                      value={currentFax}
+                      onChange={(e) => setManualFax(e.target.value)}
+                      placeholder="e.g. +15551234567"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-accent-500 focus:border-accent-500 outline-none"
+                    />
+                    {!r.doctorFax && !manualFax && (
+                      <p className="text-xs text-amber-600 mt-1">No fax on file — enter a number manually</p>
+                    )}
+                  </div>
                 </div>
-              ) : null;
-            })()}
-            <div className="flex gap-3 justify-end">
-              <button onClick={() => setConfirmFax(null)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
-              <button onClick={() => sendFax(confirmFax)}
-                className="flex items-center gap-1.5 bg-accent-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-accent-700 transition"
-              ><Send className="w-4 h-4" /> Send Fax Now</button>
+              )}
+              <div className="flex gap-3 justify-end">
+                <button onClick={() => { setConfirmFax(null); setManualFax(""); }} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
+                <button
+                  onClick={() => sendFax(confirmFax, manualFax || undefined)}
+                  disabled={!currentFax.trim()}
+                  className="flex items-center gap-1.5 bg-accent-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-accent-700 disabled:opacity-50 transition"
+                ><Send className="w-4 h-4" /> Send Fax Now</button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {loading ? (
         <div className="text-center py-12 text-gray-400">Loading referrals...</div>
@@ -301,7 +334,48 @@ export default function ReferralsPage() {
                       </div>
                       <div>
                         <p className="text-gray-400 text-xs uppercase tracking-wide mb-1">Contact</p>
-                        {referral.doctorFax && <p className="text-gray-700">Fax: {referral.doctorFax}</p>}
+                        <div className="flex items-center gap-1.5">
+                          {editingFaxId === referral.id ? (
+                            <div className="flex items-center gap-1">
+                              <span className="text-gray-700 text-sm">Fax:</span>
+                              <input
+                                type="tel"
+                                value={editFaxValue}
+                                onChange={(e) => setEditFaxValue(e.target.value)}
+                                placeholder="+15551234567"
+                                className="border border-gray-300 rounded px-2 py-0.5 text-sm w-36 focus:ring-1 focus:ring-accent-500 outline-none"
+                                autoFocus
+                              />
+                              <button
+                                onClick={async () => {
+                                  if (editFaxValue.trim()) {
+                                    await saveFaxNumber(referral.id, editFaxValue.trim());
+                                  }
+                                  setEditingFaxId(null);
+                                  setEditFaxValue("");
+                                }}
+                                className="p-0.5 text-green-600 hover:text-green-700"
+                                title="Save"
+                              ><Check className="w-4 h-4" /></button>
+                              <button
+                                onClick={() => { setEditingFaxId(null); setEditFaxValue(""); }}
+                                className="p-0.5 text-gray-400 hover:text-gray-600"
+                                title="Cancel"
+                              ><XCircle className="w-4 h-4" /></button>
+                            </div>
+                          ) : (
+                            <>
+                              <p className="text-gray-700">
+                                Fax: {referral.doctorFax || <span className="text-amber-600 italic">Not on file</span>}
+                              </p>
+                              <button
+                                onClick={() => { setEditingFaxId(referral.id); setEditFaxValue(referral.doctorFax || ""); }}
+                                className="p-0.5 text-gray-400 hover:text-accent-600"
+                                title="Edit fax number"
+                              ><Pencil className="w-3.5 h-3.5" /></button>
+                            </>
+                          )}
+                        </div>
                         {referral.doctorPhone && <p className="text-gray-700">Phone: {referral.doctorPhone}</p>}
                         {referral.doctorEmail && <p className="text-gray-700">{referral.doctorEmail}</p>}
                       </div>
@@ -378,13 +452,9 @@ export default function ReferralsPage() {
                               className="flex items-center gap-1.5 bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50 transition"
                             ><Eye className="w-4 h-4" /> Preview PDF</button>
                           )}
-                          {referral.doctorFax ? (
-                            <button onClick={() => setConfirmFax(referral.id)} disabled={busy}
-                              className="flex items-center gap-1.5 bg-accent-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-accent-700 disabled:opacity-50 transition"
-                            ><Send className="w-4 h-4" /> {busy ? "Sending..." : "Send Fax"}</button>
-                          ) : (
-                            <span className="text-xs text-amber-600 self-center">No fax number on file \u2014 cannot fax</span>
-                          )}
+                          <button onClick={() => setConfirmFax(referral.id)} disabled={busy}
+                            className="flex items-center gap-1.5 bg-accent-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-accent-700 disabled:opacity-50 transition"
+                          ><Send className="w-4 h-4" /> {busy ? "Sending..." : referral.doctorFax ? "Send Fax" : "Enter Fax & Send"}</button>
                         </>
                       )}
 
